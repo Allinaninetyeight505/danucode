@@ -1,0 +1,19 @@
+{
+  "name": "danu",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "danu": "./bin/kwencode.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "description": "Local LLM coding assistant for your terminal. Powered by Qwen.",
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "glob": "^11.0.0",
+    "ink": "^5.2.1",
+    "ink-text-input": "^6.0.0",
+    "react": "^18.3.1"
+  }
+}
