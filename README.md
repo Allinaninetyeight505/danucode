@@ -1,5 +1,6 @@
 # Danucode
 
+[![npm](https://img.shields.io/npm/v/danucode.svg)](https://www.npmjs.com/package/danucode)
 [![CI](https://github.com/zabarich/danucode/actions/workflows/ci.yml/badge.svg)](https://github.com/zabarich/danucode/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-brightgreen)](https://nodejs.org)
@@ -36,6 +37,12 @@ Added null check for user before accessing passwordHash.
 
 ## Get Running in 60 Seconds
 
+**Install from npm:**
+```bash
+npm install -g danucode
+```
+
+**Or clone from source:**
 ```bash
 git clone https://github.com/zabarich/danucode.git
 cd danucode
