@@ -6,7 +6,7 @@
 
 The simplest agent shell for your own models.
 
-For developers running Ollama, llama.cpp, vLLM, or any OpenAI-compatible endpoint who want an agentic coding tool without vendor lock-in, cloud accounts, or subscriptions.
+An agentic coding tool for your terminal where nothing leaves your network. For developers running Ollama, llama.cpp, vLLM, or any OpenAI-compatible endpoint who want the Claude Code workflow without vendor lock-in, cloud accounts, or subscriptions. For security-conscious teams, regulated industries, or anyone who just wants their code to stay on their machine.
 
 Three fields in a config file and you're running:
 
