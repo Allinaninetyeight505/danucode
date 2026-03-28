@@ -8,7 +8,12 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  "description": "Local LLM coding assistant for your terminal. Powered by Qwen.",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "license": "MIT",
+  "author": "Danucore",
+  "description": "Local LLM coding assistant for your terminal. Works with any OpenAI-compatible API.",
   "dependencies": {
     "chalk": "^5.4.1",
     "glob": "^11.0.0",

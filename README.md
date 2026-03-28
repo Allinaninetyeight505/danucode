@@ -1,8 +1,14 @@
-# Danu
+# Danucode
+
+[![CI](https://github.com/zabarich/danucode/actions/workflows/ci.yml/badge.svg)](https://github.com/zabarich/danucode/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-20%2B-brightgreen)](https://nodejs.org)
 
 Local LLM coding assistant for your terminal. Point it at any OpenAI-compatible API and get an agentic coding tool with file operations, search, shell access, and sub-agents.
 
 Works with any OpenAI-compatible backend (llama.cpp, Ollama, vLLM, OpenAI, Anthropic, etc).
+
+**(c) Danucore** | [Security Model](SECURITY.md) | [Changelog](CHANGELOG.md) | [Demos](docs/demos/)
 
 ## Quick Start
 
@@ -164,6 +170,26 @@ src/
 - [ ] **Conversation history browser** — Browse and search past sessions
 - [ ] **Keyboard shortcuts / keybindings** — Configurable key mappings
 - [ ] **Ink/React full rewrite** — Proper terminal framework for panels, scrolling, etc.
+
+## Testing
+
+```bash
+npm test
+```
+
+Tests cover: Read, Write, Edit, Glob, Grep, Patch, Tasks tools, permission boundaries, token estimation, and context pruning. Uses Node.js built-in test runner (no external test framework).
+
+CI runs on every push across Node 20/22 on Linux, Windows, and macOS.
+
+## Security
+
+Danucode gives an LLM the ability to execute shell commands and modify files on your system. See [SECURITY.md](SECURITY.md) for the full security model, including:
+
+- Permission system (y/n/always) with `--yolo` bypass
+- `.danuignore` for excluding sensitive files
+- Mode-based tool access restrictions
+- Plan mode read-only enforcement
+- No telemetry — data only goes to your configured LLM endpoint
 
 ## Requirements
 
