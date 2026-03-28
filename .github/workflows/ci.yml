@@ -40,6 +40,6 @@ jobs:
           node-version: 22
       - run: npm ci
       - name: Smoke test — version
-        run: node bin/kwencode.js --version
+        run: node bin/danu.js --version
       - name: Smoke test — help
-        run: node bin/kwencode.js --help
+        run: node bin/danu.js --help

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "danu": "./bin/kwencode.js"
+    "danu": "./bin/danu.js"
   },
   "engines": {
     "node": ">=20.0.0"

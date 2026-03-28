@@ -119,7 +119,7 @@ Memories persist across sessions in `~/.danu/memory/memories.json` and are injec
 ## Architecture
 
 ```
-bin/kwencode.js          Entry point, splash screen, readline loop, command routing
+bin/danu.js          Entry point, splash screen, readline loop, command routing
 src/
   api.js                 OpenAI-compatible API client (fetch + SSE streaming)
   loop.js                Conversation orchestrator (stream, dispatch tools, loop)
