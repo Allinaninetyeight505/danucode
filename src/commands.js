@@ -10,6 +10,7 @@ import { setMode, listModes, getCurrentMode } from './modes.js';
 import { undo, redo, getHistoryCount, getRedoCount } from './filetracker.js';
 import { getVersion } from './updater.js';
 import { getConfig, setModel } from './api.js';
+import { getFileAccessCounts } from './loop.js';
 
 const MEMORY_DIR = join(homedir(), '.danu', 'memory');
 const SESSION_DIR = join(homedir(), '.danu', 'sessions');
@@ -432,6 +433,7 @@ export function handleHelp() {
   console.log('  /compact         Compact conversation history');
   console.log('  /clear           Clear conversation and start fresh');
   console.log('  /context         Show token usage and context window');
+  console.log('  /files           List files accessed in this session');
   console.log('  /save [name]     Save current session (default: timestamp)');
   console.log('  /resume [name]   Load a session or list all sessions');
   console.log('  /history [search] Browse past sessions');
@@ -605,6 +607,21 @@ export async function handleCommand(input, conversation) {
     const color = pct > 80 ? chalk.red : pct > 50 ? chalk.yellow : chalk.green;
     console.log(`  ${color(bar)} ${pct}% of ${(maxTokens/1000).toFixed(0)}k`);
     console.log('');
+    return true;
+  }
+  if (lower === '/files') {
+    const files = getFileAccessCounts();
+    if (files.length === 0) {
+      console.log(chalk.dim('\n  No files accessed in this session.'));
+      return true;
+    }
+    console.log(chalk.green('\n  Files accessed in this session:'));
+    console.log(chalk.dim('  ─────────────────────────────────────'));
+    for (const f of files) {
+      const toolList = f.tools.join(', ');
+      console.log(`  ${f.count}x ${chalk.white(f.filePath)} ${chalk.dim(`(${toolList})`)}`);
+    }
+    console.log(chalk.dim(`\n  Total: ${files.length} files`));
     return true;
   }
   if (lower === '/memory list' || lower === '/memories') return handleMemoryList();

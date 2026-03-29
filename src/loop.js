@@ -10,6 +10,36 @@ import { runPreHooks, runPostHooks } from './hooks.js';
 
 const NEEDS_PERMISSION = new Set(['Bash', 'Write', 'Edit']);
 
+// File access tracking: maps file_path -> { count, tools: Set of tool names }
+const fileAccessCounts = new Map();
+
+const FILE_ACCESS_TOOLS = new Set(['Read', 'Write', 'Edit']);
+
+function trackFileAccess(toolName, args) {
+  if (!FILE_ACCESS_TOOLS.has(toolName)) return;
+  const filePath = args?.file_path;
+  if (!filePath) return;
+
+  const existing = fileAccessCounts.get(filePath);
+  if (existing) {
+    existing.count++;
+    existing.tools.add(toolName);
+  } else {
+    fileAccessCounts.set(filePath, { count: 1, tools: new Set([toolName]) });
+  }
+}
+
+export function getFileAccessCounts() {
+  return Array.from(fileAccessCounts.entries())
+    .map(([filePath, data]) => ({ filePath, count: data.count, tools: Array.from(data.tools) }))
+    .sort((a, b) => b.count - a.count);
+}
+
+export function clearFileAccessCounts() {
+  fileAccessCounts.clear();
+}
+
+
 // State for tracking thinking blocks during streaming
 let inThinkBlock = false;
 
@@ -196,6 +226,8 @@ export function createConversation() {
         } catch (err) {
           result = `Tool error: ${err.message}`;
         }
+
+          trackFileAccess(name, args);
 
         await runPostHooks(name, args, result);
 
