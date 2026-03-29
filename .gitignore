@@ -7,5 +7,9 @@ danu.config.json
 .understand-anything/
 DANUCODE.md
 .danuignore
-test-anthropic.json
-test-minimax.json
+test-*.json
+*config*.json
+!danu.config.example.json
+*.secret
+*.key
+*.pem
