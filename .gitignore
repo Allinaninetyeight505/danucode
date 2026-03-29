@@ -8,3 +8,4 @@ danu.config.json
 DANUCODE.md
 .danuignore
 test-anthropic.json
+test-minimax.json
