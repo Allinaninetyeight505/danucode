@@ -136,28 +136,27 @@ export function createConversation() {
           }
           if (event.type === 'text') {
             const processed = processStreamChunk(event.content);
-            textBuffer += processed;
             if (processed) hasStreamedText = true;
             // In Ink mode, accumulate and emit complete lines
             if (globalThis.__danuOutput) {
+              textBuffer += processed;
               const lines = textBuffer.split('\n');
-              // Emit all complete lines, keep the last partial one
               for (let i = 0; i < lines.length - 1; i++) {
                 if (lines[i].trim()) emit('text', renderInline(lines[i]));
               }
               textBuffer = lines[lines.length - 1];
             } else {
-              // Console mode: write processed content
+              // Console mode: write directly, don't buffer
               if (processed) process.stdout.write(renderInline(processed));
             }
           } else if (event.type === 'done') {
-            // Only process the first done event (safety fallback may emit a second)
             if (assistantMsg) continue;
-            // Flush remaining text buffer
-            if (textBuffer) {
+            // Ink mode: flush remaining buffer
+            if (globalThis.__danuOutput && textBuffer) {
               emit('text', renderInline(textBuffer));
               textBuffer = '';
             }
+            // Console mode: just add newline
             if (!globalThis.__danuOutput && hasStreamedText) {
               process.stdout.write('\n');
             }
