@@ -387,13 +387,19 @@ async function main() {
 
   // One-shot mode: run command and exit
   if (opts.command) {
+    let rl = null;
+    if (!opts.yolo) {
+      const readline = await import('node:readline/promises');
+      rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    }
     addToHistory(opts.command.trim(), process.cwd(), opts.session || '');
     const parts = opts.command.split(';').map(s => s.trim()).filter(s => s.length > 0);
     for (const part of parts) {
       if (await handleCommand(part, conversation)) continue;
-      await conversation.send(part, null);
+      await conversation.send(part, rl);
       autoSave(conversation, opts.session);
     }
+    if (rl) rl.close();
     shutdown();
     process.exit(0);
   }
