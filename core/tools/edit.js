@@ -1,5 +1,4 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import chalk from 'chalk';
 import { isIgnored } from '../ignore.js';
 import { trackChange } from '../filetracker.js';
 import { addLinesChanged } from '../cost-tracker.js';
@@ -47,17 +46,17 @@ export async function execute({ file_path, old_string, new_string, start_line, e
     const newContent = result.join('\n');
     trackChange(file_path, content, newContent);
 
-    let diffOutput = '\n' + chalk.dim('─'.repeat(60)) + '\n';
-    diffOutput += chalk.dim(`Lines ${s}-${e}:\n`);
+    let diffOutput = '\n' + '─'.repeat(60) + '\n';
+    diffOutput += `Lines ${s}-${e}:\n`;
     for (const line of removedLines.slice(0, 10)) {
-      diffOutput += chalk.red(`[-] ${line}\n`);
+      diffOutput += `[-] ${line}\n`;
     }
-    if (removedLines.length > 10) diffOutput += chalk.dim(`  ... ${removedLines.length - 10} more removed\n`);
+    if (removedLines.length > 10) diffOutput += `  ... ${removedLines.length - 10} more removed\n`;
     for (const line of newLines.slice(0, 10)) {
-      diffOutput += chalk.green(`[+] ${line}\n`);
+      diffOutput += `[+] ${line}\n`;
     }
-    if (newLines.length > 10) diffOutput += chalk.dim(`  ... ${newLines.length - 10} more added\n`);
-    diffOutput += chalk.dim('─'.repeat(60)) + '\n';
+    if (newLines.length > 10) diffOutput += `  ... ${newLines.length - 10} more added\n`;
+    diffOutput += '─'.repeat(60) + '\n';
 
     addLinesChanged(newLines.length, removedLines.length);
     await writeFile(file_path, newContent, 'utf-8');
@@ -98,22 +97,22 @@ export async function execute({ file_path, old_string, new_string, start_line, e
   const contextBefore = Math.max(0, startLine - 2);
   const contextAfter = Math.min(lines.length - 1, startLine + oldStringLines.length + 1);
 
-  let diffOutput = '\n' + chalk.dim('─'.repeat(60)) + '\n';
-  diffOutput += chalk.dim('Diff:\n');
+  let diffOutput = '\n' + '─'.repeat(60) + '\n';
+  diffOutput += 'Diff:\n';
   for (let i = contextBefore; i < startLine; i++) {
-    diffOutput += chalk.gray(`  ${lines[i]}\n`);
+    diffOutput += `  ${lines[i]}\n`;
   }
   for (const line of oldStringLines) {
-    diffOutput += chalk.red(`[-] ${line}\n`);
+    diffOutput += `[-] ${line}\n`;
   }
   for (const line of newStringLines) {
-    diffOutput += chalk.green(`[+] ${line}\n`);
+    diffOutput += `[+] ${line}\n`;
   }
   const endLine = startLine + oldStringLines.length;
   for (let i = endLine; i <= contextAfter && i < lines.length; i++) {
-    diffOutput += chalk.gray(`  ${lines[i]}\n`);
+    diffOutput += `  ${lines[i]}\n`;
   }
-  diffOutput += chalk.dim('─'.repeat(60)) + '\n';
+  diffOutput += '─'.repeat(60) + '\n';
 
   await writeFile(file_path, newContent, 'utf-8');
   return diffOutput + `Edited ${file_path}: replaced 1 occurrence.`;

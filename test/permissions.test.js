@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {
   setSkipPermissions,
   getSkipPermissions,
-  askPermission,
+  askPermissionCompat as askPermission,
   resetSessionPermissions,
-} from '../src/permissions.js';
+} from '../core/permissions.js';
 
 describe('Permission system', () => {
   beforeEach(() => {
@@ -27,7 +27,7 @@ describe('Permission system', () => {
 
   it('respects session-level allow', async () => {
     // Simulate the Ink permission handler returning 'a' (always)
-    const { setPermissionHandler } = await import('../src/permissions.js');
+    const { setPermissionHandler } = await import('../core/permissions.js');
     setPermissionHandler((toolName, args) => Promise.resolve('a'));
 
     // First call — handler returns 'a', tool gets session-allowed
@@ -45,7 +45,7 @@ describe('Permission system', () => {
   });
 
   it('resets session permissions', async () => {
-    const { setPermissionHandler } = await import('../src/permissions.js');
+    const { setPermissionHandler } = await import('../core/permissions.js');
     setPermissionHandler((toolName, args) => Promise.resolve('a'));
     await askPermission('Write', { file_path: '/tmp/test' }, null);
     setPermissionHandler(null);
@@ -57,7 +57,7 @@ describe('Permission system', () => {
   });
 
   it('denies when handler returns n', async () => {
-    const { setPermissionHandler } = await import('../src/permissions.js');
+    const { setPermissionHandler } = await import('../core/permissions.js');
     setPermissionHandler((toolName, args) => Promise.resolve('n'));
     const result = await askPermission('Bash', { command: 'dangerous' }, null);
     assert.equal(result, false);

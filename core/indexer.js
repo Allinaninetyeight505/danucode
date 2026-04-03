@@ -1,6 +1,5 @@
 import { readFileSync, writeFileSync, existsSync, statSync, mkdirSync, readdirSync } from 'node:fs';
 import { resolve, join, relative, extname, dirname, basename } from 'node:path';
-import chalk from 'chalk';
 
 const INDEX_FILE = '.danu/index.json';
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', '.next', 'vendor', '.danu', '.understand-anything', '__pycache__', '.venv', 'venv']);

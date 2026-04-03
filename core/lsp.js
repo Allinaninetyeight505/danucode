@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
-import chalk from 'chalk';
 
 let lspServer = null;
 let pendingRequests = new Map();
@@ -72,8 +71,6 @@ export async function initLsp() {
 
     // Send initialized notification
     sendLspNotification('initialized', {});
-
-    console.log(chalk.dim(`  LSP: ${config.name} server connected`));
   } catch {
     lspServer = null;
   }

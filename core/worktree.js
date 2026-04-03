@@ -1,7 +1,6 @@
 import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import chalk from 'chalk';
 
 export function isGitRepo() {
   try {
@@ -24,10 +23,8 @@ export function createWorktree() {
       cwd: process.cwd(),
       encoding: 'utf-8',
     });
-    console.log(chalk.dim(`    Worktree created: ${dir} (branch: ${branch})`));
     return { dir, branch };
   } catch (err) {
-    console.log(chalk.dim(`    Worktree creation failed: ${err.message}`));
     return null;
   }
 }
@@ -44,7 +41,6 @@ export function removeWorktree(worktree) {
       stdio: 'pipe',
       cwd: process.cwd(),
     });
-    console.log(chalk.dim(`    Worktree cleaned up`));
   } catch {
     // Best effort cleanup
   }

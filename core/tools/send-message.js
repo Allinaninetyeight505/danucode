@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import { chatCompletion } from '../api.js';
 import { getAgent, updateAgentMessages } from '../agent-registry.js';
 import { isContextLengthError, compactOnError } from '../context.js';
@@ -24,8 +23,6 @@ export async function execute({ to, message }) {
   if (!agent) {
     return `No agent found with ID or name: "${to}". Use the Agent tool to spawn a new one.`;
   }
-
-  console.log(chalk.dim(`  [SendMessage -> ${agent.id}] resuming...`));
 
   const { getToolDefinitions, executeTool } = await import('./index.js');
   const toolDefinitions = getToolDefinitions();
@@ -79,7 +76,6 @@ export async function execute({ to, message }) {
         continue;
       }
 
-      console.log(chalk.dim(`    [Agent tool: ${name}]`));
       const result = await executeTool(name, args);
       messages.push({
         role: 'tool',

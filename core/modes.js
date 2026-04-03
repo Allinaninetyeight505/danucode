@@ -1,5 +1,3 @@
-import chalk from 'chalk';
-
 let currentMode = 'code';
 
 const MODES = {

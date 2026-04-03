@@ -17,7 +17,7 @@ after(() => {
 // ─── Read Tool ──────────────────────────────────────────────
 
 describe('Read tool', async () => {
-  const { execute } = await import('../src/tools/read.js');
+  const { execute } = await import('../core/tools/read.js');
 
   it('reads a file with line numbers', async () => {
     const file = join(TEST_DIR, 'read-test.txt');
@@ -49,7 +49,7 @@ describe('Read tool', async () => {
 // ─── Write Tool ─────────────────────────────────────────────
 
 describe('Write tool', async () => {
-  const { execute } = await import('../src/tools/write.js');
+  const { execute } = await import('../core/tools/write.js');
 
   it('creates a new file', async () => {
     const file = join(TEST_DIR, 'write-new.txt');
@@ -76,7 +76,7 @@ describe('Write tool', async () => {
 // ─── Edit Tool ──────────────────────────────────────────────
 
 describe('Edit tool', async () => {
-  const { execute } = await import('../src/tools/edit.js');
+  const { execute } = await import('../core/tools/edit.js');
 
   it('replaces a unique string', async () => {
     const file = join(TEST_DIR, 'edit-test.txt');
@@ -104,7 +104,7 @@ describe('Edit tool', async () => {
 // ─── Glob Tool ──────────────────────────────────────────────
 
 describe('Glob tool', async () => {
-  const { execute } = await import('../src/tools/glob.js');
+  const { execute } = await import('../core/tools/glob.js');
 
   it('finds files matching a pattern', async () => {
     const dir = join(TEST_DIR, 'glob-test');
@@ -129,7 +129,7 @@ describe('Glob tool', async () => {
 // ─── Grep Tool ──────────────────────────────────────────────
 
 describe('Grep tool', async () => {
-  const { execute } = await import('../src/tools/grep.js');
+  const { execute } = await import('../core/tools/grep.js');
 
   it('finds matching lines', async () => {
     const dir = join(TEST_DIR, 'grep-test');
@@ -153,7 +153,7 @@ describe('Grep tool', async () => {
 // ─── Patch Tool ─────────────────────────────────────────────
 
 describe('Patch tool', async () => {
-  const { execute } = await import('../src/tools/patch.js');
+  const { execute } = await import('../core/tools/patch.js');
 
   it('applies a unified diff patch', async () => {
     const file = join(TEST_DIR, 'patch-test.txt');
@@ -172,7 +172,7 @@ describe('Patch tool', async () => {
 // ─── Tasks Tool ─────────────────────────────────────────────
 
 describe('Tasks tool', async () => {
-  const tasks = await import('../src/tools/tasks.js');
+  const tasks = await import('../core/tools/tasks.js');
 
   it('creates, updates, and lists tasks', async () => {
     const r1 = await tasks.execute('TaskCreate', { description: 'Test task' });

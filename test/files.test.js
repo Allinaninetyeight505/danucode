@@ -1,6 +1,6 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { getFileAccessCounts, clearFileAccessCounts } from '../src/loop.js';
+import { getFileAccessCounts, clearFileAccessCounts } from '../core/loop.js';
 
 describe('File access tracking', () => {
   beforeEach(() => {

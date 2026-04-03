@@ -3,15 +3,15 @@ import { writeFileSync, mkdirSync, readFileSync, readdirSync, existsSync, statSy
 import { resolve, join, extname } from 'node:path';
 import { homedir } from 'node:os';
 import { execSync } from 'node:child_process';
-import { forceCompact, estimateTokens, resetContextWarnings } from './context.js';
-import { formatCostSummary, resetCostState, getTotalTokens } from './cost-tracker.js';
-import { setSkipPermissions, getSkipPermissions } from './permissions.js';
-import { enterPlanMode, isPlanMode } from './planmode.js';
-import { setMode, listModes, getCurrentMode } from './modes.js';
-import { undo, redo, getHistoryCount, getRedoCount } from './filetracker.js';
+import { forceCompact, estimateTokens, resetContextWarnings } from '../core/context.js';
+import { formatCostSummary, resetCostState, getTotalTokens } from '../core/cost-tracker.js';
+import { setSkipPermissions, getSkipPermissions } from '../core/permissions.js';
+import { enterPlanMode, isPlanMode } from '../core/planmode.js';
+import { setMode, listModes, getCurrentMode } from '../core/modes.js';
+import { undo, redo, getHistoryCount, getRedoCount } from '../core/filetracker.js';
 import { getVersion } from './updater.js';
-import { getConfig, setModel } from './api.js';
-import { getFileAccessCounts } from './loop.js';
+import { getConfig, setModel } from '../core/api.js';
+import { getFileAccessCounts } from '../core/loop.js';
 
 const MEMORY_DIR = join(homedir(), '.danu', 'memory');
 const SESSION_DIR = join(homedir(), '.danu', 'sessions');
@@ -463,7 +463,7 @@ export async function handleCommand(input, conversation) {
   if (lower === '/init') return handleInit();
   if (lower === '/help') return handleHelp();
   if (lower === '/index') {
-    const { buildIndex, updateIndex, loadIndex } = await import('./indexer.js');
+    const { buildIndex, updateIndex, loadIndex } = await import('../core/indexer.js');
     const existing = loadIndex();
     if (existing) {
       console.log(chalk.dim('\n  Updating index...'));
@@ -516,7 +516,7 @@ export async function handleCommand(input, conversation) {
   }
   if (lower === '/plan') {
     if (isPlanMode()) {
-      const { exitPlanMode } = await import('./planmode.js');
+      const { exitPlanMode } = await import('../core/planmode.js');
       exitPlanMode();
     } else {
       enterPlanMode();
@@ -564,7 +564,7 @@ export async function handleCommand(input, conversation) {
     return true;
   }
   if (lower === '/agents') {
-    const { listAgents } = await import('./agent-registry.js');
+    const { listAgents } = await import('../core/agent-registry.js');
     const agents = listAgents();
     if (agents.length === 0) {
       console.log(chalk.dim('\n  No agents spawned in this session.'));
@@ -593,7 +593,7 @@ export async function handleCommand(input, conversation) {
       console.log(chalk.yellow('\n  No active conversation.'));
       return true;
     }
-    const { buildSystemPrompt } = await import('./system-prompt.js');
+    const { buildSystemPrompt } = await import('../core/system-prompt.js');
     conversationRef.loadMessages([{ role: 'system', content: buildSystemPrompt() }]);
     resetCostState();
     resetContextWarnings();
@@ -605,7 +605,7 @@ export async function handleCommand(input, conversation) {
       console.log(chalk.yellow('\n  No active conversation.'));
       return true;
     }
-    const { estimateTokens } = await import('./context.js');
+    const { estimateTokens } = await import('../core/context.js');
     const messages = conversationRef.getMessages();
     const total = estimateTokens(messages);
 
@@ -627,7 +627,7 @@ export async function handleCommand(input, conversation) {
     console.log(chalk.dim(`  Assistant: ~${(assistantTokens/1000).toFixed(1)}k`));
     console.log(chalk.dim(`  Tool:      ~${(toolTokens/1000).toFixed(1)}k`));
 
-    const { getConfig } = await import('./api.js');
+    const { getConfig } = await import('../core/api.js');
     const config = getConfig();
     const maxTokens = config?.max_context_tokens || 120000;
     const pct = Math.round((total / maxTokens) * 100);

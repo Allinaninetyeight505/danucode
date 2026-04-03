@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import { chatCompletion, getConfig } from '../api.js';
 import { buildSystemPrompt } from '../system-prompt.js';
 import { isContextLengthError, compactOnError } from '../context.js';
@@ -26,7 +25,6 @@ export async function execute({ prompt, description, isolation }) {
   const toolDefinitions = getToolDefinitions();
 
   const descriptionText = description || prompt.slice(0, 50);
-  console.log(chalk.dim(`  [Agent: ${descriptionText}] working...`));
 
   const baseSystemPrompt = buildSystemPrompt();
   const systemPrompt = baseSystemPrompt + '\n\nYou are a sub-agent. Complete the assigned task and return a concise summary of what you did.';
@@ -95,8 +93,6 @@ export async function execute({ prompt, description, isolation }) {
           });
           continue;
         }
-
-        console.log(chalk.dim(`    [Agent tool: ${name}]`));
 
         // Execute the tool
         const result = await executeTool(name, args);

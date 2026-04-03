@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -48,12 +47,6 @@ export function enterPlanMode() {
   // Create empty plan file
   writeFileSync(planFilePath, `# Plan\n\n`, 'utf-8');
 
-  console.log('');
-  console.log(chalk.magenta.bold('  Entered plan mode'));
-  console.log(chalk.dim(`  Plan file: ${planFilePath}`));
-  console.log(chalk.dim('  Read-only tools only. Write your plan, then call ExitPlanMode.'));
-  console.log('');
-
   return planFilePath;
 }
 
@@ -67,11 +60,6 @@ export function exitPlanMode() {
   if (planFilePath && existsSync(planFilePath)) {
     planContent = readFileSync(planFilePath, 'utf-8');
   }
-
-  console.log('');
-  console.log(chalk.green.bold('  Exited plan mode'));
-  console.log(chalk.dim('  You can now proceed with implementation.'));
-  console.log('');
 
   const path = planFilePath;
   planFilePath = null;

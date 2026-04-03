@@ -1,9 +1,18 @@
 import { execSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { loadMemories } from './commands.js';
+import { resolve, dirname, join } from 'node:path';
+import { homedir } from 'node:os';
 import { getModePromptAddition } from './modes.js';
 import { loadIndex, getIndexSummary } from './indexer.js';
+
+function loadMemories() {
+  try {
+    const memoriesPath = join(homedir(), '.danu', 'memory', 'memories.json');
+    return JSON.parse(readFileSync(memoriesPath, 'utf-8'));
+  } catch {
+    return [];
+  }
+}
 
 function getGitInfo() {
   try {

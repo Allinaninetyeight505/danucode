@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import { chatCompletion, getConfig } from './api.js';
 import { getTotalInputTokens } from './cost-tracker.js';
 
@@ -41,18 +40,17 @@ export function getContextStatus(messages) {
 }
 
 export function checkContextWarning(messages) {
-  if (warnedAt70) return;
+  if (warnedAt70) return null;
   const { percentage } = getContextStatus(messages);
   if (percentage >= 70) {
     warnedAt70 = true;
-    console.log(chalk.yellow(`\n  [Context at ${percentage}% — auto-compact will trigger at 80%]`));
+    return { percentage };
   }
+  return null;
 }
 
 export async function compactOnError(messages) {
   // Aggressive compaction for context-length errors: keep only 2 recent messages
-  console.log(chalk.yellow('\n  [Context limit hit — aggressively compacting...]'));
-
   const pruned = pruneToolOutputs(messages);
   const systemMsg = pruned[0];
   const keepRecent = pruned.slice(-2);
@@ -83,11 +81,8 @@ export async function compactOnError(messages) {
       { role: 'assistant', content: 'Understood. Continuing from where we left off.' },
       ...keepRecent,
     ];
-    const newTokens = estimateTokens(compacted);
-    console.log(chalk.green(`  [Compacted to ~${newTokens} tokens — retrying]`));
     return compacted;
   } catch (err) {
-    console.log(chalk.red(`  [Compaction failed: ${err.message} — dropping old messages]`));
     return [systemMsg, ...pruned.slice(-4)];
   }
 }
@@ -141,13 +136,10 @@ export async function compactIfNeeded(messages) {
   const pruned = pruneToolOutputs(messages);
   const prunedTokens = estimateTokens(pruned);
   if (prunedTokens < COMPACT_TRIGGER_TOKENS) {
-    console.log(chalk.dim(`\n  [Pruned old tool outputs: ~${tokens} -> ~${prunedTokens} tokens]`));
     return pruned;
   }
 
   // Stage 2: full summarization (costs an API call)
-  console.log(chalk.dim(`\n  [Compacting conversation: ~${prunedTokens} tokens -> summarizing...]`));
-
   // Keep the system prompt (index 0) and the last 4 messages
   const systemMsg = pruned[0];
   const keepRecent = pruned.slice(-4);
@@ -178,11 +170,8 @@ export async function compactIfNeeded(messages) {
       ...keepRecent,
     ];
 
-    const newTokens = estimateTokens(compactedMessages);
-    console.log(chalk.dim(`  [Compacted to ~${newTokens} tokens]`));
     return compactedMessages;
   } catch (err) {
-    console.log(chalk.dim(`  [Compaction failed: ${err.message}, trimming old messages instead]`));
     // Fallback: just drop old messages
     return [systemMsg, ...pruned.slice(-10)];
   }
@@ -195,15 +184,12 @@ export async function forceCompact(messages) {
   const pruned = pruneToolOutputs(messages);
   const prunedTokens = estimateTokens(pruned);
 
-  console.log(chalk.dim(`\n  [Forcing compaction: ~${beforeTokens} tokens -> summarizing...]`));
-
   // Keep the system prompt (index 0) and the last 4 messages
   const systemMsg = pruned[0];
   const keepRecent = pruned.slice(-4);
   const toSummarize = pruned.slice(1, -4);
 
   if (toSummarize.length < 4) {
-    console.log(chalk.yellow('\n  Not enough messages to compact (need at least 8 total).'));
     return pruned;
   }
 
@@ -230,11 +216,8 @@ export async function forceCompact(messages) {
       ...keepRecent,
     ];
 
-    const afterTokens = estimateTokens(compactedMessages);
-    console.log(chalk.green(`  [Compacted: ~${beforeTokens} tokens -> ~${afterTokens} tokens]`));
     return compactedMessages;
   } catch (err) {
-    console.log(chalk.red(`  [Compaction failed: ${err.message}]`));
     return pruned;
   }
 }

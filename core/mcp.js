@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process';
 import { getConfig } from './api.js';
-import chalk from 'chalk';
 
 const connections = new Map(); // serverName -> { process, tools, pending }
 
@@ -14,7 +13,7 @@ export async function initMcpServers() {
     try {
       await connectServer(name, serverConfig);
     } catch (err) {
-      console.log(chalk.yellow(`  MCP server '${name}' failed to connect: ${err.message}`));
+      // Connection failures are non-fatal — callers can check tool availability
     }
   }
 }
@@ -59,9 +58,7 @@ async function connectServer(name, serverConfig) {
   });
 
   proc.stderr.on('data', (data) => {
-    // Log MCP server errors
-    const text = data.toString().trim();
-    if (text) console.log(chalk.dim(`  [mcp:${name}] ${text}`));
+    // Stderr from MCP servers is silently ignored in core
   });
 
   proc.on('close', () => {
@@ -83,10 +80,8 @@ async function connectServer(name, serverConfig) {
     const toolsResult = await sendRequest(conn, 'tools/list', {});
     if (toolsResult.result?.tools) {
       conn.tools = toolsResult.result.tools;
-      console.log(chalk.dim(`  MCP '${name}': ${conn.tools.length} tools loaded`));
     }
   } catch (err) {
-    console.log(chalk.yellow(`  MCP '${name}' init failed: ${err.message}`));
     proc.kill();
     connections.delete(name);
   }

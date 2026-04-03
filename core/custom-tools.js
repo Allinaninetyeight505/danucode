@@ -2,7 +2,6 @@ import { readdirSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { homedir } from 'node:os';
 import { pathToFileURL } from 'node:url';
-import chalk from 'chalk';
 
 let customTools = {};
 
@@ -26,10 +25,9 @@ export async function loadCustomTools() {
         if (mod.definition && mod.execute) {
           const name = mod.definition.function.name;
           customTools[name] = mod;
-          console.log(chalk.dim(`  Custom tool loaded: ${name} (${file})`));
         }
-      } catch (err) {
-        console.log(chalk.yellow(`  Failed to load custom tool ${file}: ${err.message}`));
+      } catch {
+        // Skip tools that fail to load — callers can check availability
       }
     }
   }

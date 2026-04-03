@@ -1,5 +1,4 @@
 import { writeFileSync } from 'node:fs';
-import chalk from 'chalk';
 
 const history = []; // { path, before, after, timestamp }
 let redoStack = [];

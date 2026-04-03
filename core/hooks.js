@@ -1,6 +1,5 @@
 import { execSync } from 'node:child_process';
 import { getConfig } from './api.js';
-import chalk from 'chalk';
 
 export async function runPreHooks(toolName, args) {
   return runHooks('preToolUse', toolName, args);
@@ -29,8 +28,7 @@ function runHooks(phase, toolName, args, result) {
     };
 
     try {
-      console.log(chalk.dim(`  hook: ${hook.command}`));
-      const output = execSync(hook.command, {
+      execSync(hook.command, {
         encoding: 'utf-8',
         timeout: 10000,
         cwd: process.cwd(),
@@ -38,11 +36,8 @@ function runHooks(phase, toolName, args, result) {
         stdio: ['pipe', 'pipe', 'pipe'],
         shell: true,
       });
-      if (output.trim()) {
-        console.log(chalk.dim(`  ${output.trim()}`));
-      }
-    } catch (err) {
-      console.log(chalk.yellow(`  hook failed: ${err.message}`));
+    } catch {
+      // Hook failures are non-fatal in core — callers can handle errors
     }
   }
 }

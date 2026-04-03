@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { estimateTokens, pruneToolOutputs } from '../src/context.js';
+import { estimateTokens, pruneToolOutputs } from '../core/context.js';
 
 describe('Token estimation', () => {
   it('estimates tokens from message content', () => {

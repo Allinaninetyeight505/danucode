@@ -1,17 +1,14 @@
-import chalk from 'chalk';
-import { chatCompletion, streamChatCompletion } from './api.js';
+// core/loop.js — Conversation loop.
+// Emits structured events via an EventEmitter. Zero terminal dependencies.
+
+import { streamChatCompletion } from './api.js';
 import { buildSystemPrompt } from './system-prompt.js';
 import { getToolDefinitions, executeTool } from './tools/index.js';
-import { askPermission } from './permissions.js';
+import { askPermissionCompat } from './permissions.js';
 import { compactIfNeeded, isContextLengthError, compactOnError, checkContextWarning } from './context.js';
-import { renderInline } from './markdown.js';
 import { isPlanMode, getPlanModePrompt } from './planmode.js';
 import { runPreHooks, runPostHooks } from './hooks.js';
-import {
-  addListener, emitToolStart, emitToolOutput, emitToolDone,
-  emitText, emitTextDone, emitInterrupted, emitError, emitTaskUpdate,
-  classifyToolRisk, getToolCategory,
-} from './event-adapter.js';
+import { classifyRisk, getCategory, EventType } from './events.js';
 import { getTasks } from './tools/tasks.js';
 
 const NEEDS_PERMISSION = new Set(['Bash', 'Write', 'Edit']);
@@ -50,7 +47,6 @@ export function clearFileAccessCounts() {
 let inThinkBlock = false;
 
 function stripThinking(text) {
-  // Handle complete think blocks
   text = text.replace(/<think>[\s\S]*?<\/think>\s*/g, '');
   return text;
 }
@@ -60,7 +56,6 @@ function processStreamChunk(chunk) {
   let i = 0;
   while (i < chunk.length) {
     if (!inThinkBlock) {
-      // Check if we're entering a think block
       const thinkStart = chunk.indexOf('<think>', i);
       if (thinkStart === -1) {
         result += chunk.slice(i);
@@ -68,48 +63,31 @@ function processStreamChunk(chunk) {
       } else {
         result += chunk.slice(i, thinkStart);
         inThinkBlock = true;
-        i = thinkStart + 7; // skip past <think>
+        i = thinkStart + 7;
       }
     } else {
-      // We're inside a think block, look for end
       const thinkEnd = chunk.indexOf('</think>', i);
       if (thinkEnd === -1) {
-        break; // Still in think block, discard rest
+        break;
       } else {
         inThinkBlock = false;
-        i = thinkEnd + 8; // skip past </think>
+        i = thinkEnd + 8;
       }
     }
   }
   return result;
 }
 
-// Output helpers — route through Ink when available, fallback to console
-function emit(type, content) {
-  if (globalThis.__danuOutput) {
-    globalThis.__danuOutput(type, content);
-  } else if (type === 'error') {
-    console.log(chalk.red(content));
-  } else if (type === 'tool-output') {
-    console.log(chalk.dim(`    ${content}`));
-  } else if (type === 'tool-start') {
-    console.log(chalk.cyan(`  ${content}`));
-  } else if (type === 'tool-done') {
-    console.log(content === '✓' ? chalk.green('    ✓') : chalk.red('    ✗'));
-  } else if (type === 'system') {
-    console.log(chalk.dim(`  ${content}`));
-  } else {
-    console.log(content);
-  }
-}
-
-export { addListener };
-
-export function createConversation(tabId) {
+export function createConversation(tabId, emitter) {
   tabId = tabId || 'cli';
   const messages = [
     { role: 'system', content: buildSystemPrompt() }
   ];
+
+  // Emit helper — only emits if an emitter is provided
+  function emit(event, data) {
+    if (emitter) emitter.emit(event, data);
+  }
 
   async function send(userMessage, rl, signal) {
     inThinkBlock = false;
@@ -132,7 +110,6 @@ export function createConversation(tabId) {
 
       let assistantMsg;
       let textBuffer = '';
-      let guiTextBuffer = '';
       let hasStreamedText = false;
       try {
         const currentTools = getToolDefinitions();
@@ -140,70 +117,45 @@ export function createConversation(tabId) {
 
         for await (const event of stream) {
           if (signal?.aborted) {
-            emit('system', 'Interrupted.');
-            emitInterrupted(tabId, 'User interrupted');
+            emit(EventType.INTERRUPTED, { reason: 'User interrupted' });
             messages.pop();
             return;
           }
           if (event.type === 'text') {
             const processed = processStreamChunk(event.content);
             if (processed) hasStreamedText = true;
-            // GUI structured events: buffer into complete lines independently
-            guiTextBuffer += processed;
-            const guiLines = guiTextBuffer.split('\n');
-            guiTextBuffer = guiLines.pop() || '';
-            for (let gi = 0; gi < guiLines.length; gi++) {
-              if (guiLines[gi].trim()) emitText(tabId, guiLines[gi]);
-            }
-            // In Ink mode, accumulate and emit complete lines
-            if (globalThis.__danuOutput) {
-              textBuffer += processed;
-              const lines = textBuffer.split('\n');
-              for (let i = 0; i < lines.length - 1; i++) {
-                if (lines[i].trim()) emit('text', renderInline(lines[i]));
-              }
-              textBuffer = lines[lines.length - 1];
-            } else {
-              // Console mode: write directly, don't buffer
-              if (processed) process.stdout.write(renderInline(processed));
+            // Buffer into complete lines for event emission
+            textBuffer += processed;
+            const lines = textBuffer.split('\n');
+            textBuffer = lines.pop() || '';
+            for (const line of lines) {
+              if (line.trim()) emit(EventType.TEXT, { content: line });
             }
           } else if (event.type === 'done') {
             if (assistantMsg) continue;
-            // Flush GUI text buffer
-            if (guiTextBuffer.trim()) {
-              emitText(tabId, guiTextBuffer);
-              guiTextBuffer = '';
-            }
-            emitTextDone(tabId);
-            // Ink mode: flush remaining buffer
-            if (globalThis.__danuOutput && textBuffer) {
-              emit('text', renderInline(textBuffer));
+            // Flush remaining text buffer
+            if (textBuffer.trim()) {
+              emit(EventType.TEXT, { content: textBuffer });
               textBuffer = '';
             }
-            // Console mode: just add newline
-            if (!globalThis.__danuOutput && hasStreamedText) {
-              process.stdout.write('\n');
-            }
+            emit(EventType.TEXT_DONE, {});
             assistantMsg = event.message;
           }
         }
       } catch (err) {
         if (err.name === 'AbortError') {
-          emit('system', 'Interrupted.');
-          emitInterrupted(tabId, 'User interrupted');
+          emit(EventType.INTERRUPTED, { reason: 'User interrupted' });
           messages.pop();
           return;
         }
-        // Reactive compaction: retry on context-length errors
         if (isContextLengthError(err) && contextRetries < 2) {
           contextRetries++;
           const compacted = await compactOnError(messages);
           messages.length = 0;
           messages.push(...compacted);
-          continue; // Retry the API call
+          continue;
         }
-        emit('error', `Error: ${err.message}`);
-        emitError(tabId, `Error: ${err.message}`);
+        emit(EventType.ERROR, { message: `Error: ${err.message}` });
         messages.pop();
         return;
       }
@@ -219,8 +171,7 @@ export function createConversation(tabId) {
 
       for (const toolCall of assistantMsg.tool_calls) {
         if (signal?.aborted) {
-          emit('system', 'Interrupted.');
-          emitInterrupted(tabId, 'User interrupted');
+          emit(EventType.INTERRUPTED, { reason: 'User interrupted' });
           return;
         }
 
@@ -231,8 +182,7 @@ export function createConversation(tabId) {
             ? JSON.parse(toolCall.function.arguments)
             : toolCall.function.arguments;
         } catch (parseErr) {
-          emit('error', `Parse error: ${parseErr.message}`);
-          emitError(tabId, `Parse error: ${parseErr.message}`);
+          emit(EventType.ERROR, { message: `Parse error: ${parseErr.message}` });
           messages.push({
             role: 'tool',
             tool_call_id: toolCall.id,
@@ -243,14 +193,17 @@ export function createConversation(tabId) {
         }
 
         const detail = getToolDetail(name, args);
-        emit('tool-start', `● ${name}  ${detail || ''}`);
-        emitToolStart(tabId, name, args);
+        emit(EventType.TOOL_START, {
+          tool: name,
+          detail,
+          risk: classifyRisk(name, args),
+          category: getCategory(name),
+        });
 
         if (NEEDS_PERMISSION.has(name) && !isPlanMode()) {
-          const granted = await askPermission(name, args, rl);
+          const granted = await askPermissionCompat(name, args, rl);
           if (!granted) {
-            emit('tool-done', '✗');
-            emitToolDone(tabId, false, 'Permission denied');
+            emit(EventType.TOOL_DONE, { success: false, summary: 'Permission denied' });
             messages.push({
               role: 'tool',
               tool_call_id: toolCall.id,
@@ -270,34 +223,32 @@ export function createConversation(tabId) {
           result = `Tool error: ${err.message}`;
         }
 
-          trackFileAccess(name, args);
+        trackFileAccess(name, args);
 
         await runPostHooks(name, args, result);
 
-        // Show truncated result
+        // Emit tool output
         const lines = result.split('\n');
         const maxLines = 12;
-        for (const line of lines.slice(0, maxLines)) {
-          emit('tool-output', line);
-        }
-        if (lines.length > maxLines) {
-          emit('tool-output', `... ${lines.length - maxLines} more lines`);
-        }
-
-        // Structured output for GUI
         const outputPreview = lines.slice(0, maxLines).join('\n')
           + (lines.length > maxLines ? `\n... ${lines.length - maxLines} more lines` : '');
-        emitToolOutput(tabId, outputPreview, lines.length);
+        emit(EventType.TOOL_OUTPUT, {
+          content: outputPreview,
+          lineCount: lines.length,
+          truncated: lines.length > maxLines,
+        });
 
         // Completion indicator
         const failed = result.startsWith('Error:') || result.startsWith('Tool error:') || result.startsWith('Blocked:');
-        emit('tool-done', failed ? '✗' : '✓');
-        emitToolDone(tabId, !failed, failed ? result.split('\n')[0] : '');
+        emit(EventType.TOOL_DONE, {
+          success: !failed,
+          summary: failed ? result.split('\n')[0] : '',
+        });
 
         // Emit task updates for task-related tools
         if (['TaskCreate', 'TaskUpdate', 'TaskList'].includes(name)) {
           const { tasks: allTasks, completed, total } = getTasks();
-          emitTaskUpdate(tabId, allTasks, completed, total);
+          emit(EventType.TASK_UPDATE, { tasks: allTasks, completed, total });
         }
 
         messages.push({

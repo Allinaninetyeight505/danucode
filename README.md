@@ -5,54 +5,119 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-brightgreen)](https://nodejs.org)
 
-**The simplest agent shell for your own models.**
+**Danucode is a JavaScript SDK for building coding agents. It ships with a complete CLI.**
 
-<img src="demo.gif" alt="Danucode demo" />
+The core is an importable library with zero terminal dependencies. The CLI is built on top of it. Same npm package, two entry points.
 
-An agentic coding tool for your terminal where nothing leaves your network. Point it at Ollama, llama.cpp, vLLM, or any OpenAI-compatible endpoint. No account, no subscription, no cloud.
-
-```
-$ danu
-
-  ____                                 _
- |  _ \  __ _ _ __  _   _  ___ ___   __| | ___
- | | | |/ _` | '_ \| | | |/ __/ _ \ / _` |/ _ \
- | |_| | (_| | | | | |_| | (_| (_) | (_| |  __/
- |____/ \__,_|_| |_|\__,_|\___\___/ \__,_|\___|
-
-  v0.1.0 · qwen2.5-coder:32b · localhost:11434  (c) Danucore
-
-❯ find the bug in src/auth.js and fix it
-
-  ● Read  src/auth.js
-    1  import bcrypt from 'bcrypt';
-    2  ...
-    ✓
-  ● Edit  src/auth.js
-    [-] const valid = await bcrypt.compare(password, user.passwordHash);
-    [+] if (!user) return { error: 'Invalid credentials' };
-    [+] const valid = await bcrypt.compare(password, user.passwordHash);
-    ✓
-
-Added null check for user before accessing passwordHash.
+```bash
+npm install danucode
 ```
 
-## Get Running in 60 Seconds
+## What's New in v1.0.0
 
-**Install from npm:**
+Danucode has been refactored from a monolithic CLI into a two-layer SDK + CLI architecture:
+
+- **Importable Agent class** -- `import { Agent } from 'danucode'` gives you the full agent engine as a library
+- **Structured event system** -- every LLM response, tool call, and state change is an `EventEmitter` event with risk classification
+- **Zero terminal dependencies in core** -- no chalk, no ink, no readline. Runs headless in any JavaScript environment
+- **`--json` output mode** -- pipe `danu` output as NDJSON for automation and integration
+- **Permission policy engine** -- plug in your own approval logic instead of interactive prompts
+- **Clean separation** -- `core/` (SDK) and `cli/` (terminal UI) with a one-way dependency
+
+## SDK Usage
+
+```javascript
+import { Agent, EventType } from 'danucode';
+
+const agent = Agent.create();
+
+agent.on(EventType.TEXT, (e) => process.stdout.write(e.content));
+agent.on(EventType.TOOL_START, (e) => console.log(`  [${e.risk}] ${e.tool}: ${e.detail}`));
+agent.on(EventType.TOOL_DONE, (e) => console.log(e.success ? '  OK' : '  FAILED'));
+
+await agent.run('fix the failing tests');
+```
+
+The Agent class extends `EventEmitter`. Subscribe to structured events to build any UI you want -- a web frontend, a Slack bot, a CI reporter, a VS Code extension.
+
+### Agent API
+
+```javascript
+const agent = Agent.create();
+
+await agent.run(message, { signal });     // one-shot prompt
+await agent.send(message, { signal });    // continue conversation
+
+agent.getMessages();                       // conversation history
+agent.getTokenEstimate();                  // rough token count
+agent.stop();                              // cancel current operation
+
+agent.save('my-session');                  // persist to disk
+agent.load('my-session');                  // restore
+agent.clear();                             // reset conversation
+await agent.compact();                     // compress context
+```
+
+### Events
+
+| Event | Payload | When |
+|---|---|---|
+| `text` | `{ content }` | LLM streams a line of text |
+| `text-done` | `{}` | LLM finished its response |
+| `tool-start` | `{ tool, detail, risk, category }` | Tool call begins |
+| `tool-output` | `{ content, truncated }` | Tool produced output |
+| `tool-done` | `{ success, summary }` | Tool call completed |
+| `task-update` | `{ tasks, completed, total }` | Task list changed |
+| `interrupted` | `{ reason }` | Operation cancelled |
+| `error` | `{ message }` | Something went wrong |
+
+### Risk Classification
+
+Every tool call is tagged with a risk level and category:
+
+```javascript
+import { classifyRisk, getCategory } from 'danucode';
+
+classifyRisk('Bash', { command: 'ls' });        // 'caution'
+classifyRisk('Bash', { command: 'rm -rf /' });   // 'danger'
+classifyRisk('Read', { file_path: 'x.js' });     // 'safe'
+getCategory('Bash');                              // 'shell'
+getCategory('Grep');                              // 'search'
+```
+
+Risk levels: `safe`, `caution`, `danger`. Categories: `read`, `search`, `edit`, `shell`, `task`.
+
+### Custom Permissions
+
+The SDK's permission system is a policy engine, not a prompt. Plug in your own logic:
+
+```javascript
+import { setPermissionHandler } from 'danucode';
+
+setPermissionHandler(async (toolName, args) => {
+  if (toolName === 'Read') return 'y';
+  if (toolName === 'Bash') return 'n';
+  return await askMyCustomUI(toolName, args);
+});
+```
+
+### What You Can Build
+
+- Custom CLIs with different UIs or workflows
+- Web backends that expose agent capabilities via HTTP
+- CI/CD bots that fix failing tests automatically
+- VS Code extensions with embedded agent support
+- Slack/Discord bots that respond to coding requests
+- Testing harnesses that run agents programmatically
+- Monitoring dashboards that consume the event stream
+
+## CLI Usage
+
 ```bash
 npm install -g danucode
 ```
 
-**Or clone from source:**
-```bash
-git clone https://github.com/zabarich/danucode.git
-cd danucode
-npm install
-npm link
-```
-
-Create `~/.danu/config.json` — three fields, that's it:
+Create `~/.danu/config.json`:
 
 ```json
 {
@@ -63,73 +128,99 @@ Create `~/.danu/config.json` — three fields, that's it:
 ```
 
 ```bash
-danu                    # interactive
+danu                    # interactive TUI
 danu --yolo             # skip permission prompts
-danu -c "fix the bug"  # one-shot
+danu -c "fix the bug"  # one-shot mode
+danu --json -c "..."   # NDJSON output (pipeable)
 danu doctor             # check your setup
 ```
+
+<img src="demo.gif" alt="Danucode demo" />
+
+### NDJSON Output Mode
+
+`--json` suppresses all terminal formatting and outputs every agent event as one JSON object per line:
+
+```bash
+$ danu --json --yolo -c "what is 2+2"
+{"type":"text","content":"4"}
+{"type":"text-done"}
+```
+
+Pipe it to `jq`, feed it to a web socket, log it to a file:
+
+```bash
+danu --json --yolo -c "fix the bug" | jq 'select(.type == "tool-start")'
+danu --json --yolo -c "refactor auth" > events.jsonl
+```
+
+Each line is a valid JSON object with a `type` field matching the SDK event names: `text`, `text-done`, `tool-start`, `tool-output`, `tool-done`, `error`, `interrupted`, `task-update`.
+
+## Architecture
+
+```
+danucode/
+  core/                  SDK (zero terminal dependencies)
+    index.js             Public API: Agent, EventType, tools, permissions
+    agent.js             Agent class (EventEmitter)
+    loop.js              Conversation loop (emits events, no console.log)
+    events.js            Event types, risk classification
+    permissions.js       Permission policy engine (not prompts)
+    api.js               LLM clients (OpenAI-compatible + Anthropic native)
+    context.js           Token estimation, compaction
+    tools/               15 built-in tools
+    ...
+
+  cli/                   Terminal UI (imports from core/, never the reverse)
+    commands.js          Slash commands (/help, /mode, /plan, etc.)
+    permissions-prompt.js Interactive permission prompts
+    markdown.js          Terminal markdown rendering
+    ui/                  Ink/React components
+    ...
+
+  bin/danu.js            CLI entry point
+```
+
+The dependency arrow goes one way: **cli/ -> core/**. Nothing in `core/` imports from `cli/`. Nothing in `core/` uses `console.log`, `chalk`, `ink`, `react`, or `readline`.
 
 ## Danucode vs Aider vs Claude Code
 
 | | Danucode | Aider | Claude Code |
 |---|---|---|---|
-| **Philosophy** | Simplest possible agent shell. Read the code in an afternoon. | Battle-tested AI pair programmer with deep git integration. | Full agentic coding platform from the model provider. |
-| **Language** | JavaScript (~4k LOC) | Python (large codebase) | Node.js (closed source) |
+| **What it is** | JavaScript SDK + CLI. Import the agent as a library. | Python CLI pair programmer with deep git integration. | Full agentic platform from the model provider. |
+| **Embeddable** | Yes -- `import { Agent } from 'danucode'` | No (CLI only) | No (CLI + IDE plugins) |
+| **Event stream** | EventEmitter with risk classification, `--json` NDJSON output | No | No |
+| **Custom permissions** | Pluggable policy function | No | No |
+| **Language** | JavaScript (~4k LOC, readable in an afternoon) | Python (large codebase) | Node.js (closed source) |
 | **License** | MIT | Apache 2.0 | Proprietary |
-| **Setup** | `npm i -g danucode` → 3-field JSON | `pip install aider-install` | `npm i -g @anthropic-ai/claude-code` |
-| **Backend** | Any OpenAI-compatible + native Anthropic (Ollama, llama.cpp, vLLM, OpenAI, Anthropic) | Any OpenAI-compatible, plus native Claude, Gemini, DeepSeek | Claude only (Opus/Sonnet) |
-| **Local-only / air-gapped** | First-class. Zero cloud dependency. | With local models via Ollama etc. | Requires Anthropic account + API |
-| **Account required** | No | No (bring your own key) | Yes (Claude subscription or API key) |
-| **Git integration** | Manual | Automatic commits, smart messages, auto-stage | Automatic commits, branches, PRs |
-| **Codebase mapping** | No | Repo-map for large projects | Full codebase awareness |
-| **Modes** | code, architect, ask, debug | code, architect, ask | Interactive, headless, background agents |
-| **Plan before execute** | `/plan` | `/architect` | Via extended thinking |
-| **IDE integration** | Terminal only | VS Code, in-editor comments | VS Code, JetBrains, web, mobile |
+| **Backend** | Any OpenAI-compatible + native Anthropic | Any OpenAI-compatible + native Claude, Gemini, DeepSeek | Claude only |
+| **Local / air-gapped** | First-class. Zero cloud dependency. | With local models | Requires Anthropic API |
+| **Account required** | No | No | Yes |
+| **Git integration** | Manual | Automatic commits | Automatic commits, PRs |
+| **Modes** | code, architect, ask, debug | code, architect, ask | Interactive, headless |
 | **MCP support** | Configurable | No | Extensive |
-| **Sub-agents** | Agent tool | No | Agent Teams |
-| **Lint / test loop** | Manual | Auto-lint and auto-test | Auto-test |
-| **Session persistence** | `--session`, `/save`, `/resume` | Chat history | Sessions, `/rewind` |
-| **Permissions** | y/n/always per tool, `--yolo` | Edits directly | y/n/always, `--dangerously-skip-permissions` |
-| **Maturity** | Experimental (weeks old) | Production (years, large community) | Production (Anthropic-backed) |
+| **Sub-agents** | Agent tool + SendMessage | No | Agent Teams |
+| **Maturity** | v1.0.0 | Production (years) | Production (Anthropic-backed) |
 
-**Honest take:** If you want the most capable tool, use Claude Code. If you want proven open-source with broad model support, use Aider. If you want something you can fully understand, modify, and point at your own infrastructure with zero external dependencies — that's what Danucode is for.
+If you want the most capable tool, use Claude Code. If you want proven open-source with broad model support, use Aider. If you want an embeddable agent SDK for JavaScript that you can fully understand, modify, and point at your own infrastructure -- that is what Danucode is for.
 
-## How It Works
+## Features
 
-The same loop as every agentic coding tool:
+**15 Tools:** Bash, Read, Write, Edit, Grep, Glob, Patch, Agent, SendMessage, WebSearch, WebFetch, GitHub, LSP, NotebookEdit, Tasks
 
-1. You type a message
-2. Danucode sends it + tool definitions to your LLM
-3. The LLM responds with text or tool calls
-4. Tools execute locally, results go back to the LLM
-5. Repeat until done
-
-## What You Get
-
-**Tools:** Bash, Read, Write, Edit, Grep, Glob, Patch, Agent, WebSearch, WebFetch, GitHub, LSP, NotebookEdit, Tasks
-
-**Modes:** `code` (full access) · `architect` (read-only + markdown) · `ask` (read-only) · `debug` (diagnostic focus)
+**4 Modes:** `code` (full access) -- `architect` (read-only + markdown) -- `ask` (read-only) -- `debug` (diagnostic focus)
 
 **Plan mode:** `/plan` to explore and design before implementing
 
-**Project context:** `DANUCODE.md` loaded into the system prompt — `/init` generates one
+**Project context:** `DANUCODE.md` loaded into the system prompt -- `/init` generates one
 
 **Memory:** `/memory save` persists preferences across sessions
 
-**Sessions:** `--session myproject` auto-saves and resumes
+**Sessions:** `--session name` auto-saves and resumes
 
-**Permissions:** `y/n/a(lways)` per tool · `--yolo` to bypass
+**Permissions:** `y/n/a(lways)` per tool -- `--yolo` to bypass -- or plug in your own policy
 
-**Extensibility:** MCP servers · custom tools in `.danu/tools/` · hooks · configurable search
-
-**18 commands:** `/help` `/init` `/plan` `/mode` `/model` `/yolo` `/undo` `/redo` `/compact` `/save` `/resume` `/history` `/memory` `/pr` `/exit` and more
-
-## Demos
-
-See [docs/demos/](docs/demos/) for realistic usage transcripts:
-- [Basic usage](docs/demos/01-basic-usage.md) — reading code, finding a bug, fixing it
-- [Plan mode](docs/demos/02-plan-mode.md) — designing before implementing
-- [Task workflow](docs/demos/03-task-workflow.md) — breaking work into tracked steps
+**Extensibility:** MCP servers -- custom tools in `.danu/tools/` -- hooks -- configurable search
 
 ## Configuration
 
@@ -158,28 +249,27 @@ See `danu.config.example.json` for all options.
 npm test
 ```
 
-25 tests covering tool execution, permission boundaries, token estimation, and context management. Node.js built-in test runner, no external framework. CI runs on Node 20/22 across Linux, Windows, and macOS.
+30 tests covering tool execution, permission boundaries, token estimation, and context management. Node.js built-in test runner, no external framework.
 
 ## Security
 
 Danucode can execute shell commands and modify files. Read [SECURITY.md](SECURITY.md).
 
-Key points: permission prompts by default, `.danuignore` for sensitive files, mode-based restrictions, no telemetry, data only goes to your configured endpoint.
+Key points: permission prompts by default, `.danuignore` for sensitive files, pluggable permission policies, mode-based restrictions, no telemetry, data only goes to your configured endpoint.
 
 ## Roadmap
 
-Actively developing. Current priorities:
-- [ ] Terminal recording / asciinema demo
-- [ ] Model compatibility matrix (which models work well with tool calling)
-- [ ] Skills system (markdown prompt templates)
-- [ ] Deeper test coverage
-- [ ] Permission fail-closed hardening
+v1.1.0 priorities:
+- Graph memory (indexed relationship store replacing flat JSON files)
+- Model compatibility matrix (which models work well with tool calling)
+- Skills system (markdown prompt templates)
+- Deeper test coverage
 
 See [CHANGELOG.md](CHANGELOG.md) for what's already built.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Bug reports, model compatibility notes, tests, and system prompt improvements are the most impactful contributions right now.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

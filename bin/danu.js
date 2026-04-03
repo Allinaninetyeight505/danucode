@@ -8,18 +8,20 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { execSync } from 'node:child_process';
-import { loadConfig, getConfig } from '../src/api.js';
-import { createConversation } from '../src/loop.js';
-import { handleCommand, setConversationRef } from '../src/commands.js';
-import { setSkipPermissions, getSkipPermissions, setPermissionHandler } from '../src/permissions.js';
-import { estimateTokens } from '../src/context.js';
-import { isPlanMode } from '../src/planmode.js';
-import { getCurrentMode, getModeConfig } from '../src/modes.js';
-import { initMcpServers, shutdownMcpServers } from '../src/mcp.js';
-import { loadCustomTools } from '../src/custom-tools.js';
-import { checkForUpdates, showUpdateNotice, getVersion } from '../src/updater.js';
-import { initLsp, shutdownLsp } from '../src/lsp.js';
-import { addToHistory, getHistory } from '../src/history.js';
+import { loadConfig, getConfig } from '../core/api.js';
+import { createConversation } from '../core/loop.js';
+import { handleCommand, setConversationRef } from '../cli/commands.js';
+import { setSkipPermissions, getSkipPermissions, setPermissionHandler } from '../core/permissions.js';
+import { estimateTokens } from '../core/context.js';
+import { isPlanMode } from '../core/planmode.js';
+import { getCurrentMode, getModeConfig } from '../core/modes.js';
+import { initMcpServers, shutdownMcpServers } from '../core/mcp.js';
+import { loadCustomTools } from '../core/custom-tools.js';
+import { checkForUpdates, showUpdateNotice, getVersion } from '../cli/updater.js';
+import { initLsp, shutdownLsp } from '../core/lsp.js';
+import { addToHistory, getHistory } from '../core/history.js';
+import { renderInline } from '../cli/markdown.js';
+import { EventType } from '../core/events.js';
 
 const e = React.createElement;
 
@@ -83,13 +85,14 @@ async function runDoctor() {
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  const opts = { config: undefined, yolo: false, model: undefined, command: undefined, session: undefined };
+  const opts = { config: undefined, yolo: false, json: false, model: undefined, command: undefined, session: undefined };
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
       case '--config': opts.config = args[++i]; break;
       case '--model': opts.model = args[++i]; break;
       case '--dangerously-skip-permissions':
       case '--yolo': opts.yolo = true; break;
+      case '--json': opts.json = true; break;
       case '-c':
       case '--command': opts.command = args[++i]; break;
       case '--session': opts.session = args[++i]; break;
@@ -98,7 +101,7 @@ function parseArgs() {
         console.log(getVersion());
         process.exit(0);
       case '--help':
-        console.log(`\nUsage: danu [options|subcommand]\n\nSubcommands:\n  doctor                            Check system setup and LLM connectivity\n\nOptions:\n  --config <path>                   Path to danu.config.json\n  --model <name>                    Override model name\n  -c, --command <cmd>               One-shot mode: run command and exit\n  --session <name>                  Named session (persistent across runs)\n  --yolo                            Skip all permission prompts\n  --dangerously-skip-permissions    Same as --yolo\n  -v, --version                     Show version\n  --help                            Show this help\n`);
+        console.log(`\nUsage: danu [options|subcommand]\n\nSubcommands:\n  doctor                            Check system setup and LLM connectivity\n\nOptions:\n  --config <path>                   Path to danu.config.json\n  --model <name>                    Override model name\n  -c, --command <cmd>               One-shot mode: run command and exit\n  --session <name>                  Named session (persistent across runs)\n  --json                            Output events as NDJSON (one JSON object per line)\n  --yolo                            Skip all permission prompts\n  --dangerously-skip-permissions    Same as --yolo\n  -v, --version                     Show version\n  --help                            Show this help\n`);
         process.exit(0);
     }
   }
@@ -112,7 +115,7 @@ function getProjectName() {
 
 // ─── Ink App ────────────────────────────────────────────────
 
-function DanuApp({ config, yolo, projectName, conversation, abort, sessionName }) {
+function DanuApp({ config, yolo, projectName, conversation, abort, sessionName, emitter }) {
   const { exit } = useApp();
   const [lines, setLines] = useState([]);
   const [input, setInput] = useState('');
@@ -153,12 +156,41 @@ function DanuApp({ config, yolo, projectName, conversation, abort, sessionName }
     setLines(prev => [...prev, { id: lineId.current++, type, content }]);
   }, []);
 
-  // Wire output from loop.js
+  // Subscribe to emitter events from core/loop.js
   useEffect(() => {
-    const handler = (type, content) => addLine(type, content);
-    globalThis.__danuOutput = handler;
-    return () => { globalThis.__danuOutput = null; };
-  }, [addLine]);
+    if (!emitter) return;
+    const onText = ({ content }) => addLine('text', renderInline(content));
+    const onToolStart = ({ tool, detail }) => addLine('tool-start', `● ${tool}  ${detail || ''}`);
+    const onToolOutput = ({ content }) => {
+      const outputLines = content.split('\n');
+      const maxLines = 12;
+      for (const line of outputLines.slice(0, maxLines)) {
+        addLine('tool-output', line);
+      }
+      if (outputLines.length > maxLines) {
+        addLine('tool-output', `... ${outputLines.length - maxLines} more lines`);
+      }
+    };
+    const onToolDone = ({ success }) => addLine('tool-done', success ? '✓' : '✗');
+    const onError = ({ message }) => addLine('error', message);
+    const onInterrupted = () => addLine('system', 'Interrupted.');
+
+    emitter.on(EventType.TEXT, onText);
+    emitter.on(EventType.TOOL_START, onToolStart);
+    emitter.on(EventType.TOOL_OUTPUT, onToolOutput);
+    emitter.on(EventType.TOOL_DONE, onToolDone);
+    emitter.on(EventType.ERROR, onError);
+    emitter.on(EventType.INTERRUPTED, onInterrupted);
+
+    return () => {
+      emitter.off(EventType.TEXT, onText);
+      emitter.off(EventType.TOOL_START, onToolStart);
+      emitter.off(EventType.TOOL_OUTPUT, onToolOutput);
+      emitter.off(EventType.TOOL_DONE, onToolDone);
+      emitter.off(EventType.ERROR, onError);
+      emitter.off(EventType.INTERRUPTED, onInterrupted);
+    };
+  }, [emitter, addLine]);
 
   // Wire permission handler
   useEffect(() => {
@@ -352,7 +384,7 @@ async function main() {
     loadConfig(opts.config);
     // CLI model override
     if (opts.model) {
-      const { setModel } = await import('../src/api.js');
+      const { setModel } = await import('../core/api.js');
       setModel(opts.model);
     }
   } catch (err) {
@@ -366,7 +398,12 @@ async function main() {
   checkForUpdates().then(showUpdateNotice).catch(() => {});
 
   const config = getConfig();
-  const conversation = createConversation();
+
+  // Create an EventEmitter for the conversation to emit events through
+  const { EventEmitter } = await import('node:events');
+  const emitter = new EventEmitter();
+
+  const conversation = createConversation('cli', emitter);
   setConversationRef(conversation);
   const projectName = getProjectName();
   const abort = { current: null };
@@ -385,8 +422,64 @@ async function main() {
     }
   }
 
+  // --json mode: output every event as NDJSON, no terminal rendering
+  if (opts.json) {
+    const jsonLine = (type, data) => process.stdout.write(JSON.stringify({ type, ...data }) + '\n');
+    emitter.on(EventType.TEXT, (d) => jsonLine('text', d));
+    emitter.on(EventType.TEXT_DONE, (d) => jsonLine('text-done', d));
+    emitter.on(EventType.TOOL_START, (d) => jsonLine('tool-start', d));
+    emitter.on(EventType.TOOL_OUTPUT, (d) => jsonLine('tool-output', d));
+    emitter.on(EventType.TOOL_DONE, (d) => jsonLine('tool-done', d));
+    emitter.on(EventType.ERROR, (d) => jsonLine('error', d));
+    emitter.on(EventType.INTERRUPTED, (d) => jsonLine('interrupted', d));
+    emitter.on(EventType.TASK_UPDATE, (d) => jsonLine('task-update', d));
+
+    if (opts.command) {
+      addToHistory(opts.command.trim(), process.cwd(), opts.session || '');
+      const parts = opts.command.split(';').map(s => s.trim()).filter(s => s.length > 0);
+      for (const part of parts) {
+        if (await handleCommand(part, conversation)) continue;
+        await conversation.send(part, null);
+        autoSave(conversation, opts.session);
+      }
+      shutdown();
+      process.exit(0);
+    }
+
+    // Interactive --json mode (piped stdin)
+    const readline = await import('node:readline/promises');
+    const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
+    rl.on('close', () => { shutdown(); process.exit(0); });
+    while (true) {
+      let userInput;
+      try { userInput = await rl.question(''); } catch { break; }
+      if (!userInput.trim()) continue;
+      const parts = userInput.split(';').map(s => s.trim()).filter(s => s.length > 0);
+      addToHistory(userInput.trim(), process.cwd(), opts.session || '');
+      for (const part of parts) {
+        if (await handleCommand(part, conversation)) continue;
+        await conversation.send(part, null);
+        autoSave(conversation, opts.session);
+      }
+    }
+    shutdown();
+    process.exit(0);
+  }
+
   // One-shot mode: run command and exit
   if (opts.command) {
+    // In one-shot mode, subscribe to events and print to console
+    emitter.on(EventType.TEXT, ({ content }) => process.stdout.write(renderInline(content) + '\n'));
+    emitter.on(EventType.TOOL_START, ({ tool, detail }) => console.log(chalk.cyan(`  ● ${tool}  ${detail || ''}`)));
+    emitter.on(EventType.TOOL_OUTPUT, ({ content }) => {
+      for (const line of content.split('\n').slice(0, 12)) {
+        console.log(chalk.dim(`    ${line}`));
+      }
+    });
+    emitter.on(EventType.TOOL_DONE, ({ success }) => console.log(success ? chalk.green('    ✓') : chalk.red('    ✗')));
+    emitter.on(EventType.ERROR, ({ message }) => console.log(chalk.red(`  ${message}`)));
+    emitter.on(EventType.INTERRUPTED, () => console.log(chalk.dim('  Interrupted.')));
+
     let rl = null;
     if (!opts.yolo) {
       const readline = await import('node:readline/promises');
@@ -427,12 +520,24 @@ async function main() {
   // Use Ink if we have a real TTY, fallback to simple readline otherwise
   if (process.stdin.isTTY) {
     const { waitUntilExit } = render(
-      e(DanuApp, { config, yolo: opts.yolo, projectName, conversation, abort, sessionName: opts.session })
+      e(DanuApp, { config, yolo: opts.yolo, projectName, conversation, abort, sessionName: opts.session, emitter })
     );
     await waitUntilExit();
     autoSave(conversation, opts.session);
   } else {
     // Non-TTY fallback (piped input, CI, etc.)
+    // Subscribe emitter for console output
+    emitter.on(EventType.TEXT, ({ content }) => process.stdout.write(renderInline(content) + '\n'));
+    emitter.on(EventType.TOOL_START, ({ tool, detail }) => console.log(chalk.cyan(`  ● ${tool}  ${detail || ''}`)));
+    emitter.on(EventType.TOOL_OUTPUT, ({ content }) => {
+      for (const line of content.split('\n').slice(0, 12)) {
+        console.log(chalk.dim(`    ${line}`));
+      }
+    });
+    emitter.on(EventType.TOOL_DONE, ({ success }) => console.log(success ? chalk.green('    ✓') : chalk.red('    ✗')));
+    emitter.on(EventType.ERROR, ({ message }) => console.log(chalk.red(`  ${message}`)));
+    emitter.on(EventType.INTERRUPTED, () => console.log(chalk.dim('  Interrupted.')));
+
     const readline = await import('node:readline/promises');
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     rl.on('close', () => { shutdown(); process.exit(0); });
