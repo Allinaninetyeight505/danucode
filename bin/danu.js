@@ -22,6 +22,7 @@ import { initLsp, shutdownLsp } from '../core/lsp.js';
 import { addToHistory, getHistory } from '../core/history.js';
 import { renderInline } from '../cli/markdown.js';
 import { EventType } from '../core/events.js';
+import { bufferEvent, runAutoLearn, recoverPendingLearnings } from '../core/auto-learn.js';
 
 const e = React.createElement;
 
@@ -351,6 +352,20 @@ function DanuApp({ config, yolo, projectName, conversation, abort, sessionName, 
 
 // ─── Main ───────────────────────────────────────────────────
 
+async function shutdownWithLearn(emitter) {
+  // Run auto-learning before shutdown
+  try {
+    await runAutoLearn((msg) => {
+      if (emitter) emitter.emit(EventType.STATUS, { message: msg });
+      else console.log(chalk.dim(`  ${msg}`));
+    });
+  } catch {
+    // Never block shutdown
+  }
+  shutdownLsp();
+  shutdownMcpServers();
+}
+
 function shutdown() {
   shutdownLsp();
   shutdownMcpServers();
@@ -408,6 +423,14 @@ async function main() {
   const projectName = getProjectName();
   const abort = { current: null };
 
+  // Auto-learn: buffer all events for post-session reflection
+  for (const eventType of Object.values(EventType)) {
+    emitter.on(eventType, (data) => bufferEvent({ type: eventType, ...data }));
+  }
+
+  // Crash recovery: if previous session didn't get to reflect, do it now
+  await recoverPendingLearnings((msg) => console.log(chalk.dim(`  ${msg}`)));
+
   // Load session if specified
   if (opts.session) {
     const sessionPath = join(homedir(), '.danu', 'sessions', `${opts.session}.json`);
@@ -442,14 +465,14 @@ async function main() {
         await conversation.send(part, null);
         autoSave(conversation, opts.session);
       }
-      shutdown();
+      await shutdownWithLearn(emitter);
       process.exit(0);
     }
 
     // Interactive --json mode (piped stdin)
     const readline = await import('node:readline/promises');
     const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
-    rl.on('close', () => { shutdown(); process.exit(0); });
+    rl.on('close', async () => { await shutdownWithLearn(emitter); process.exit(0); });
     while (true) {
       let userInput;
       try { userInput = await rl.question(''); } catch { break; }
@@ -462,7 +485,7 @@ async function main() {
         autoSave(conversation, opts.session);
       }
     }
-    shutdown();
+    await shutdownWithLearn(emitter);
     process.exit(0);
   }
 
@@ -493,7 +516,7 @@ async function main() {
       autoSave(conversation, opts.session);
     }
     if (rl) rl.close();
-    shutdown();
+    await shutdownWithLearn(emitter);
     process.exit(0);
   }
 
@@ -524,6 +547,7 @@ async function main() {
     );
     await waitUntilExit();
     autoSave(conversation, opts.session);
+    await shutdownWithLearn(emitter);
   } else {
     // Non-TTY fallback (piped input, CI, etc.)
     // Subscribe emitter for console output
@@ -540,7 +564,7 @@ async function main() {
 
     const readline = await import('node:readline/promises');
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    rl.on('close', () => { shutdown(); process.exit(0); });
+    rl.on('close', async () => { await shutdownWithLearn(emitter); process.exit(0); });
     while (true) {
       let userInput;
       try { userInput = await rl.question(chalk.green('❯ ')); } catch { break; }
@@ -550,13 +574,13 @@ async function main() {
       for (const part of parts) {
         if (await handleCommand(part, conversation)) continue;
         const cmd = part.toLowerCase();
-        if (cmd === '/exit' || cmd === '/quit' || cmd === 'exit') { shutdown(); process.exit(0); }
+        if (cmd === '/exit' || cmd === '/quit' || cmd === 'exit') { await shutdownWithLearn(emitter); process.exit(0); }
         await conversation.send(part, rl);
         autoSave(conversation, opts.session);
       }
     }
   }
-  shutdown();
+  await shutdownWithLearn(emitter);
 }
 
 main().catch(err => { console.error(`Fatal: ${err.message}`); process.exit(1); });

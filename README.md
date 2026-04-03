@@ -13,7 +13,21 @@ The core is an importable library with zero terminal dependencies. The CLI is bu
 npm install danucode
 ```
 
-## What's New in v1.1.0
+## What's New
+
+### Auto-Learning (latest)
+
+Danucode now **learns automatically from every session**. When a session ends, a lightweight LLM reflection pass reviews what happened — tool failures, user corrections, error patterns — and extracts insights worth remembering into the graph memory. No user action required.
+
+- **Post-session reflection** -- an LLM call at session end asks "what from this session is worth remembering?"
+- **Crash recovery** -- events are buffered to disk incrementally. If a session crashes, learnings are recovered on next startup
+- **Always-on by default** -- set `auto_learn: false` in config to disable
+- **Model override** -- set `auto_learn_model` in config to use a different (e.g. cheaper) model for reflection
+- **Smart filtering** -- only tool outcomes, errors, and user messages are sent to the reflection prompt, not the full conversation
+
+The graph memory gets smarter the more you use it. Project conventions, error patterns, architectural decisions — they accumulate and are injected into the system prompt for future sessions.
+
+### v1.1.0 — Graph Memory
 
 **Graph memory** replaces the flat JSON memory system with a relationship graph:
 
@@ -183,6 +197,7 @@ danucode/
     api.js               LLM clients (OpenAI-compatible + Anthropic native)
     context.js           Token estimation, compaction
     memory.js            Graph memory (nodes, edges, BFS, relevance scoring)
+    auto-learn.js        Post-session LLM reflection, event buffering, crash recovery
     tools/               17 built-in tools (including MemoryStore, MemoryQuery)
     ...
 
@@ -215,6 +230,7 @@ The dependency arrow goes one way: **cli/ -> core/**. Nothing in `core/` imports
 | **Modes** | code, architect, ask, debug | code, architect, ask | Interactive, headless |
 | **MCP support** | Configurable | No | Extensive |
 | **Sub-agents** | Agent tool + SendMessage | No | Agent Teams |
+| **Auto-learning** | Yes -- post-session reflection enriches memory | No | No |
 | **Maturity** | v1.1.0 | Production (years) | Production (Anthropic-backed) |
 
 If you want the most capable tool, use Claude Code. If you want proven open-source with broad model support, use Aider. If you want an embeddable agent SDK for JavaScript that you can fully understand, modify, and point at your own infrastructure -- that is what Danucode is for.
@@ -230,6 +246,8 @@ If you want the most capable tool, use Claude Code. If you want proven open-sour
 **Project context:** `DANUCODE.md` loaded into the system prompt -- `/init` generates one
 
 **Graph memory:** Relationship graph at `~/.danu/memory/graph.json` with typed nodes and edges. `/memory save` creates nodes, `/memory link` connects them, `/memory related` traverses connections, `/memory graph` shows the full structure, `/memory pin` protects important nodes. Relevant memories are scored and injected into the system prompt automatically. The LLM can also create and query memories via `MemoryStore` and `MemoryQuery` tools.
+
+**Auto-learning:** The graph enriches itself after every session. A post-session LLM reflection pass extracts patterns, conventions, and decisions from tool outcomes and user corrections. Crash-safe via append-only event buffer with recovery on next startup.
 
 **Sessions:** `--session name` auto-saves and resumes
 
@@ -264,7 +282,7 @@ See `danu.config.example.json` for all options.
 npm test
 ```
 
-70 tests covering tool execution, permission boundaries, token estimation, context management, and graph memory (CRUD, deduplication, BFS traversal, keyword extraction, relevance scoring, pruning, migration). Node.js built-in test runner, no external framework.
+87 tests covering tool execution, permission boundaries, token estimation, context management, graph memory (CRUD, deduplication, BFS traversal, keyword extraction, relevance scoring, pruning, migration), and auto-learning (event buffering, reflection, crash recovery). Node.js built-in test runner, no external framework.
 
 ## Security
 
@@ -275,8 +293,10 @@ Key points: permission prompts by default, `.danuignore` for sensitive files, pl
 ## Roadmap
 
 Next priorities:
-- Model compatibility matrix (which models work well with tool calling)
+- Benchmark harness (repeatable test suite to measure agent performance)
+- Self-improvement loop (meta-agent optimises prompts, benchmarks scores, keep or revert)
 - Skills system (markdown prompt templates)
+- Model compatibility matrix (which models work well with tool calling)
 
 See [CHANGELOG.md](CHANGELOG.md) for what's already built.
 

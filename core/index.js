@@ -12,3 +12,4 @@ export { isPlanMode, enterPlanMode, exitPlanMode } from './planmode.js';
 export { loadConfig, getConfig } from './api.js';
 export { buildSystemPrompt } from './system-prompt.js';
 export { loadGraph, saveGraph, addNode, removeNode, addEdge, findNodes, queryRelated, getGraphMemorySection, extractKeywords } from './memory.js';
+export { bufferEvent, runAutoLearn, recoverPendingLearnings, reflectOnSession, applyLearnings, clearPendingBuffer } from './auto-learn.js';

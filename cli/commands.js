@@ -4,6 +4,7 @@ import { resolve, join, extname } from 'node:path';
 import { homedir } from 'node:os';
 import { execSync } from 'node:child_process';
 import { forceCompact, estimateTokens, resetContextWarnings } from '../core/context.js';
+import { clearPendingBuffer } from '../core/auto-learn.js';
 import { formatCostSummary, resetCostState, getTotalTokens } from '../core/cost-tracker.js';
 import { setSkipPermissions, getSkipPermissions } from '../core/permissions.js';
 import { enterPlanMode, isPlanMode } from '../core/planmode.js';
@@ -726,6 +727,7 @@ export async function handleCommand(input, conversation) {
     conversationRef.loadMessages([{ role: 'system', content: buildSystemPrompt() }]);
     resetCostState();
     resetContextWarnings();
+    clearPendingBuffer();
     console.log(chalk.green('\n  Conversation cleared.'));
     return true;
   }
